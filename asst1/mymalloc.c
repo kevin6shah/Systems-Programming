@@ -1,13 +1,11 @@
-#include <stdio.h>
-#include <stdlib.h>
 #include "mymalloc.h"
 
-void* mymalloc(int x) {
+void* mymalloc(size_t x, char* FILE, int LINE) {
 	printf("Success My Malloc\n");
 	void *hello;
 	return hello;
 }
 
-void free(int x) {
+void myfree(void *ptr, char* FILE, int LINE) {
 	printf("Success My Free\n");
 }
