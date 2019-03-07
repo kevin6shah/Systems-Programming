@@ -1,4 +1,4 @@
-#include "mymalloc.h"
+ #include "mymalloc.h"
 #define metadata_size sizeof(short)
 #define MAGIC_NUMBER *(short*)myblock	// Retrieves the Magic Number
 #define MALLOCED_FIRST_BLOCK *(short*)&myblock[metadata_size]	// Gets the size of the first block if it's malloced
@@ -79,6 +79,30 @@ void print() {
 		printf("Sum: %d", sum);
 		printf("\n");
 	} else printf("Incorrect Malloc Structure\n");
+}
+
+// will check if ptr points to the beginning of the block
+//if it points to metadata or middle of a block will return -1
+//if it is outside of the bounds of the array, it will return a -1
+//If it points correctly to a block (first byte), it will return the metadata of the previous block to be used later.
+// if it returns a -2, the first block is being freed.
+int check(void *ptr){
+    int i = 2;
+    int prev_metadata = -2;
+    while (i < 4096){
+        short metadata;
+        memcpy(&metadata, block + i, sizeof(short));
+        char *pointer = &[block + metadata_size + i];
+        if (ptr == pointer){ //correct free passed;
+            return prev_metadata;
+        }
+        if (ptr < pointer){
+            return -1;
+        }
+        prev_metadata = metadata;
+        i = i + metadata_size + metadata;
+    }
+    return -1;
 }
 
 void myfree(void *ptr, char* FILE, int LINE) {
