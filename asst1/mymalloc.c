@@ -104,7 +104,8 @@ int check(void *ptr){
             return -1;
         }
         prev_metadata = metadata;
-        i = i + metadata_size + metadata;
+        printf("prevptr: %lu\n", pointer);
+        i = i + metadata_size + abs(metadata);
     }
     return -1;
 }
@@ -158,8 +159,8 @@ void myfree(void *ptr, char* FILE, int LINE) {
         merge(ptr, NULL);
         return;
     }
-    void * prev_pointer = ((ptr - metadata_size) - status) - metadata_size;
-    printf("in here\n");
+    void * prev_pointer = (((ptr - metadata_size) - status) );
+    printf("status: %lu\n", prev_pointer);
     merge(ptr, prev_pointer);
     return;
     
