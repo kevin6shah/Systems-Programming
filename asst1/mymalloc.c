@@ -87,12 +87,15 @@ void print() {
 //If it points correctly to a block (first byte), it will return the metadata of the previous block to be used later.
 // if it returns a -2, the first block is being freed.
 int check(void *ptr){
-    int i = 2;
+    if((*(short*)(ptr-metadata_size)) < 0){
+        return -1;
+    }
+    int i = 2; //will start of pointing to the first metadata block.
     int prev_metadata = -2;
     while (i < 4096){
         short metadata;
-        memcpy(&metadata, block + i, sizeof(short));
-        char *pointer = &[block + metadata_size + i];
+        memcpy(&metadata, myblock + i, sizeof(short));
+        void *pointer = &myblock[metadata_size + i];
         if (ptr == pointer){ //correct free passed;
             return prev_metadata;
         }
@@ -105,6 +108,50 @@ int check(void *ptr){
     return -1;
 }
 
+//merges adjacent free blocks together
+//to be used after free
+//will merge using left-shift
+//check right, if free, then merge to original ptr.
+//check left, if free, merge ptr to prev.
+//if prev_ptr is NULL, ptr is the first block.
+void merge(void *ptr, void* prev_pointer){
+    short metadata = *(short*)(ptr-metadata_size);
+    int not_first_block = 0;
+    short prev_metadata;
+    if (prev_pointer != NULL){
+        not_first_block = 1;
+        prev_metadata = *(short*)(prev_pointer-metadata_size);
+    }
+    short post_metadata = *(short*)(ptr + metadata);
+    short zero = 0;
+    if (post_metadata < 0){ //it is a free block.
+        *(short*)(ptr + metadata) = zero; //sets post block metadata to zero
+        *(short*)(ptr-metadata_size) = metadata + post_metadata + metadata_size; // adds the post-block size to the current block + metadata size.
+        metadata = *(short*)(ptr-metadata_size);
+    }
+    if (not_first_block == 1){
+        if (prev_pointer < 0){
+            *(short*)(ptr - metadata_size) = zero; //sets current block meta-data to zero
+            *(short*) (prev_pointer - metadata_size) = metadata + prev_metadata + metadata_size; //pre-metadata block size = prev + current + metadatasize.
+        }
+    }
+    
+    
+}
+
 void myfree(void *ptr, char* FILE, int LINE) {
-	printf("Success My Free\n");
+    int status = check(ptr);
+    if (status == -1){
+        printf("error\n");
+        return;
+    }
+    *(short *)(ptr - metadata_size) = -1 * (*(short *) (ptr-metadata_size)); //block is freed, yay.
+    if (status == -2){
+        merge(ptr, NULL);
+        return;
+    }
+    void * prev_pointer = ((ptr - metadata_size) - status) - metadata_size;
+    merge(ptr, prev_pointer);
+    return;
+    
 }
