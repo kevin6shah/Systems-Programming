@@ -104,7 +104,7 @@ int check(void *ptr){
             return -1;
         }
         prev_metadata = metadata;
-        i = i + metadata_size + metadata;
+        i = i + metadata_size + abs(metadata);
     }
     return -1;
 }
@@ -153,6 +153,7 @@ void myfree(void *ptr, char* FILE, int LINE) {
         return;
     }
     void * prev_pointer = ((ptr - metadata_size) - status) - metadata_size;
+    prev_pointer = (((ptr - metadata_size) - status) );
     merge(ptr, prev_pointer);
     return;
     
