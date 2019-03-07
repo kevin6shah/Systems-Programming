@@ -15,6 +15,9 @@ int main(int argc, char** argv) {
     void *p = malloc(123);
     free(p);*/
     
+	//print();
+	//*(short*)(vp-2) = -17;
+	//malloc(-12);
 	void *a = malloc(18);
 	void *b = malloc(45);
 	void *c = malloc(33);
@@ -24,6 +27,7 @@ int main(int argc, char** argv) {
     free(a);
     free(c);
     free(b);
+    //free(vp);
     //free(b);
     //free(b);
 	print();

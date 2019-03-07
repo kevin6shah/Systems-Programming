@@ -98,7 +98,7 @@ int check(void *ptr){
         memcpy(&metadata, myblock + i, metadata_size);
         void *pointer = &myblock[metadata_size + i];
         if (ptr == pointer){ //correct free passed;
-            return abs(prev_metadata);
+            return (prev_metadata);
         }
         if (ptr < pointer){
             return -1;
@@ -128,6 +128,7 @@ void merge(void *ptr, void* prev_pointer){
     short zero = 0;
     if (post_metadata < 0){ //it is a free block.
         *(short*)(ptr + metadata) = zero; //sets post block metadata to zero
+        *(short*)(ptr + abs(metadata)) = zero; //sets post block metadata to zero
         *(short*)(ptr-metadata_size) = metadata + post_metadata + neg_met; // adds the post-block size to the current block + metadata size.
         metadata = *(short*)(ptr-metadata_size);
     }
@@ -154,6 +155,7 @@ void myfree(void *ptr, char* FILE, int LINE) {
     }
     void * prev_pointer = ((ptr - metadata_size) - status) - metadata_size;
     prev_pointer = (((ptr - metadata_size) - status) );
+    prev_pointer = ((ptr - metadata_size) - abs(status)) ;
     merge(ptr, prev_pointer);
     return;
     
