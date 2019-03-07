@@ -10,7 +10,7 @@ void* mymalloc(size_t x, char* FILE, int LINE) {
     short first_two_bytes;
     int firstmalloc = 0; //keeps track if it is the first time malloc has occurred.
     memcpy(&first_two_bytes, myblock, sizeof(short));
-    if (first_two_bytes = 31767){
+    if (first_two_bytes == 31767){
         firstmalloc = 1;
     }
     
@@ -31,8 +31,19 @@ void* mymalloc(size_t x, char* FILE, int LINE) {
         short metadata;
         memcpy(&metadata, block + i, sizeof(short));
         if (metadata < 0 && abs((int)metadata) > actual_size){ //there is enough and empty space to malloc here
-            
+            short newdata = (short) x;
+            memcpy(block + i, &newdata, sizeof(short));
+            void *address = (void*)(block + i + 2);
+            metadata = metadata + actual_size; //since it is free, the meta-data is negative, so adding will actually subtract
+            if (metadata > 0){
+                return address;
+            }
+            memcpy(block + i + actual_size, &metadata, sizeof(short));
+            return address;
         }
+        metadata = (short) abs((int) metadata);
+        i = i + 2 + metadata;
+        
     }
     
     
