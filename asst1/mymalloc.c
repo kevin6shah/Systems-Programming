@@ -16,10 +16,14 @@ void* initialize(size_t x) {	// Initializes by allocating for it and returns the
  * Creates a metadata for the remaining free space
  * and returns the pointer for the allocated space.
  */
-void* createMetadata(int size, size_t x, void* ptr) {
+void* createMetadata(short size, size_t x, void* ptr) {
 	if (x == size || (x-size) <= metadata_size) {	// If there is a perfect fit or close fit (*** GOTTA CHECK ON THE CLOSE FIT PART ***)
 		return ptr;
 	}
+	short actualSize = x - (size + metadata_size);
+	*(short*)(ptr-metadata_size) = size;
+	*(short*)(ptr+size) = -1*actualSize;
+	return ptr;
 }
 
 void* mymalloc(size_t x, char* FILE, int LINE) {
