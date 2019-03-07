@@ -95,7 +95,7 @@ int check(void *ptr){
     int prev_metadata = -2;
     while (i < 4096){
         short metadata;
-        memcpy(&metadata, myblock + i, sizeof(short));
+        memcpy(&metadata, myblock + i, metadata_size);
         void *pointer = &myblock[metadata_size + i];
         if (ptr == pointer){ //correct free passed;
             return abs(prev_metadata);
@@ -117,28 +117,22 @@ int check(void *ptr){
 //if prev_ptr is NULL, ptr is the first block.
 void merge(void *ptr, void* prev_pointer){
     short metadata = *(short*)(ptr-metadata_size);
-    printf("metadata: %d\n", metadata);
     int not_first_block = 0;
     short prev_metadata;
     
     if (prev_pointer != NULL){
-        printf("also in here\n");
         not_first_block = 1;
         prev_metadata = *(short*)(prev_pointer-metadata_size);
-        printf("prevmeta: %d\n", prev_metadata);
     }
     short post_metadata = *(short*)(ptr + abs(metadata));
-    printf("postmeta: %d\n", post_metadata);
     short zero = 0;
     if (post_metadata < 0){ //it is a free block.
-        printf("you already know\n");
         *(short*)(ptr + metadata) = zero; //sets post block metadata to zero
         *(short*)(ptr-metadata_size) = metadata + post_metadata + neg_met; // adds the post-block size to the current block + metadata size.
         metadata = *(short*)(ptr-metadata_size);
     }
     if (not_first_block == 1){
         if (prev_metadata < 0){
-            printf("haha\n");
             *(short*)(ptr - metadata_size) = zero; //sets current block meta-data to zero
             *(short*) (prev_pointer - metadata_size) = metadata + prev_metadata + neg_met; //pre-metadata block size = prev + current + metadatasize.
         }
@@ -150,7 +144,7 @@ void merge(void *ptr, void* prev_pointer){
 void myfree(void *ptr, char* FILE, int LINE) {
     int status = check(ptr);
     if (status == -1){
-        printf("error\n");
+        printf("Error\n");
         return;
     }
     *(short *)(ptr - metadata_size) = -1 * (*(short *) (ptr-metadata_size)); //block is freed, yay.
@@ -159,7 +153,6 @@ void myfree(void *ptr, char* FILE, int LINE) {
         return;
     }
     void * prev_pointer = ((ptr - metadata_size) - status) - metadata_size;
-    printf("in here\n");
     merge(ptr, prev_pointer);
     return;
     
