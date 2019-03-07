@@ -93,16 +93,18 @@ int check(void *ptr){
     }
     int i = 2; //will start of pointing to the first metadata block.
     int prev_metadata = -2;
-    while (i < 4096){
+    while (i <= 4094){
         short metadata;
         memcpy(&metadata, myblock + i, metadata_size);
         void *pointer = &myblock[metadata_size + i];
         if (ptr == pointer){ //correct free passed;
+            
             return (prev_metadata);
         }
         if (ptr < pointer){
             return -1;
         }
+        
         prev_metadata = metadata;
         i = i + metadata_size + abs(metadata);
     }
@@ -118,19 +120,25 @@ int check(void *ptr){
 void merge(void *ptr, void* prev_pointer){
     short metadata = *(short*)(ptr-metadata_size);
     int not_first_block = 0;
+    int not_last_block = 0;
+    short post_metadata;
+    if ((ptr + metadata - 1) != myblock + 4095){
+        not_last_block = 1;
+        post_metadata = *(short*)(ptr + abs(metadata));
+    }
     short prev_metadata;
-    
     if (prev_pointer != NULL){
         not_first_block = 1;
         prev_metadata = *(short*)(prev_pointer-metadata_size);
     }
-    short post_metadata = *(short*)(ptr + abs(metadata));
+    
     short zero = 0;
-    if (post_metadata < 0){ //it is a free block.
-        *(short*)(ptr + metadata) = zero; //sets post block metadata to zero
-        *(short*)(ptr + abs(metadata)) = zero; //sets post block metadata to zero
-        *(short*)(ptr-metadata_size) = metadata + post_metadata + neg_met; // adds the post-block size to the current block + metadata size.
-        metadata = *(short*)(ptr-metadata_size);
+    if(not_last_block == 1){
+        if (post_metadata < 0){ //it is a free block.
+            *(short*)(ptr + abs(metadata)) = zero; //sets post block metadata to zero
+            *(short*)(ptr-metadata_size) = metadata + post_metadata + neg_met; // adds the post-block size to the current block + metadata size.
+            metadata = *(short*)(ptr-metadata_size);
+        }
     }
     if (not_first_block == 1){
         if (prev_metadata < 0){
@@ -153,9 +161,7 @@ void myfree(void *ptr, char* FILE, int LINE) {
         merge(ptr, NULL);
         return;
     }
-    void * prev_pointer = ((ptr - metadata_size) - status) - metadata_size;
-    prev_pointer = (((ptr - metadata_size) - status) );
-    prev_pointer = ((ptr - metadata_size) - abs(status)) ;
+    void * prev_pointer = ((ptr - metadata_size) - abs(status));
     merge(ptr, prev_pointer);
     return;
     
