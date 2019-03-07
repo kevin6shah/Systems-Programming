@@ -29,7 +29,7 @@ void* createMetadata(size_t size, size_t x, void* ptr) {
 
 void* mymalloc(size_t x, char* FILE, int LINE) {
 	if (MAGIC_NUMBER != 31735) {	// Checks for the Magic Number
-		if (!(x <= 0)) {
+		if (x > 0 && x <= 4092) {
 			return initialize(x);
 		} return NULL;
 	} else {

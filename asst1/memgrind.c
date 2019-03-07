@@ -9,6 +9,8 @@ int main(int argc, char** argv) {
 	malloc(17);
 	malloc(45);
 	malloc(33);
+	malloc(3980);
+	malloc(9);
 	print();
 	free(vp);
 	return 0;
