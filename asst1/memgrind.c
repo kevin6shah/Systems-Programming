@@ -4,30 +4,13 @@ int testA();
 int testB();
 
 int main(int argc, char** argv) {
-	// Lets starts working on the memgrind now and make sure we only use
-	// git push and git pull, no more git push origin master stuff
 	if (testA()) {
 		printf("TestA Success!\n");
 	}
-	void *ptr = malloc(1);
-	void *ptr1 = malloc(1);
-	void *ptr2 = malloc(1);
-	void *ptr3 = malloc(1);
-	void *ptr4 = malloc(1);
-	void *ptr5 = malloc(1);
-	free(ptr);
-	print();
-	free(ptr1);
-	print();
-	free(ptr2);
-	print();
-	free(ptr3);
-	free(ptr4);
-	free(ptr5);
-	printf("DONELINEE\n");
 	if (testB()) {
 		printf("TestB Success!\n");
 	}
+	
 }
 
 

@@ -32,9 +32,12 @@ void* mymalloc(size_t x, char* FILE, int LINE) {
 	if (MAGIC_NUMBER != 31735) {	// Checks for the Magic Number
 		if (x > 0 && x <= 4092) {
 			return initialize(x);
-		} return NULL;
+		}
+		fprintf(stderr, "ERROR: Line %d of %s: Trying to allocate either too much or invalid amount of memory!\n", LINE, FILE);
+		return NULL;
 	} else {
 		if (x <= 0) {
+			fprintf(stderr, "ERROR: Line %d of %s: Trying to allocate an invalid amount of memory!\n", LINE, FILE);
 			return NULL;	// Error Check
 		}
 		int i = metadata_size*2;
@@ -58,6 +61,7 @@ void* mymalloc(size_t x, char* FILE, int LINE) {
 			sum = sum + metadata_size + abs(size);
 		}
 	}
+	fprintf(stderr, "ERROR: Line %d of %s: Could not allocate memory!\n", LINE, FILE);
 	return NULL;
 }
 
@@ -88,10 +92,17 @@ void print() {
 //If it points correctly to a block (first byte), it will return the metadata of the previous block to be used later.
 // if it returns a -2, the first block is being freed.
 int check(void *ptr){
-    if((*(short*)(ptr-metadata_size)) < 0){
+	int i, chk = 0;
+	for (i = 0; i < 4096; i++) {	// Basically checks if the pointer given is within the range of our char array
+		if (ptr == (void*)&myblock[i]) {
+			chk = 1;
+			break;
+		}
+	}
+    if(chk == 0 || (*(short*)(ptr-metadata_size)) < 0) {
         return -6000;
     }
-    int i = 2; //will start of pointing to the first metadata block.
+    i = 2; //will start of pointing to the first metadata block.
     int prev_metadata = -5000;
     while (i <= 4094){
         short metadata;
@@ -153,7 +164,7 @@ void merge(void *ptr, void* prev_pointer){
 void myfree(void *ptr, char* FILE, int LINE) {
     int status = check(ptr);
     if (status == -6000){
-        printf("Error\n");
+        fprintf(stderr, "ERROR: Line %d of %s: Failed to free!\n", LINE, FILE);
         return;
     }
     *(short *)(ptr - metadata_size) = -1 * (*(short *) (ptr-metadata_size)); //block is freed, yay.
@@ -163,6 +174,5 @@ void myfree(void *ptr, char* FILE, int LINE) {
     }
     void * prev_pointer = ((ptr - metadata_size) - abs(status));
     merge(ptr, prev_pointer);
-    return;
-    
+    return; 
 }
