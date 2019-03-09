@@ -89,10 +89,10 @@ void print() {
 // if it returns a -2, the first block is being freed.
 int check(void *ptr){
     if((*(short*)(ptr-metadata_size)) < 0){
-        return -1;
+        return -6000;
     }
     int i = 2; //will start of pointing to the first metadata block.
-    int prev_metadata = -2;
+    int prev_metadata = -5000;
     while (i <= 4094){
         short metadata;
         memcpy(&metadata, myblock + i, metadata_size);
@@ -102,13 +102,13 @@ int check(void *ptr){
             return (prev_metadata);
         }
         if (ptr < pointer){
-            return -1;
+            return -6000;
         }
         
         prev_metadata = metadata;
         i = i + metadata_size + abs(metadata);
     }
-    return -1;
+    return -6000;
 }
 
 //merges adjacent free blocks together
@@ -152,12 +152,12 @@ void merge(void *ptr, void* prev_pointer){
 
 void myfree(void *ptr, char* FILE, int LINE) {
     int status = check(ptr);
-    if (status == -1){
+    if (status == -6000){
         printf("Error\n");
         return;
     }
     *(short *)(ptr - metadata_size) = -1 * (*(short *) (ptr-metadata_size)); //block is freed, yay.
-    if (status == -2){
+    if (status == -5000){
         merge(ptr, NULL);
         return;
     }

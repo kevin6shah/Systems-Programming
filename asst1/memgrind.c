@@ -25,10 +25,11 @@ int main(int argc, char** argv) {
 	free(ptr4);
 	free(ptr5);
 	printf("DONELINEE\n");
-	/*if (testB()) {
+	if (testB()) {
 		printf("TestB Success!\n");
-	}*/
+	}
 }
+
 
 int testA() {
 	int i;
@@ -40,6 +41,9 @@ int testA() {
 	print();
 	return 1;
 }
+ 
+
+
 
 int testB() {
 	char *ptr[150];
@@ -63,6 +67,7 @@ int testB() {
 			}
 		}
 	}
-	//print();
+	print();
 	return 1;
 }
+
