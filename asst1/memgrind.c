@@ -1,7 +1,10 @@
 #include "mymalloc.h"
+#include <time.h>
 
 int testA();
 int testB();
+int testC();
+int testD();
 
 int main(int argc, char** argv) {
 	if (testA()) {
@@ -10,7 +13,12 @@ int main(int argc, char** argv) {
 	if (testB()) {
 		printf("TestB Success!\n");
 	}
-	
+    if (testC()) {
+        printf("TestC Success!\n");
+    }
+    if (testD()) {
+        printf("TestD Success!\n");
+    }
 }
 
 
@@ -52,5 +60,77 @@ int testB() {
 	}
 	print();
 	return 1;
+}
+
+
+int testC(){
+    int operation = 0; //if operation = 1 malloc, if operation = 0 free
+    int malloc_counter = 0;
+    int free_counter = 0;
+    void *pointer_holder[50];
+    int index = 0;
+    srand(time(NULL));
+    while(1){
+        if (malloc_counter == 50) break;
+        operation = rand() % 2;
+        if (operation == 1){
+            void *ptr = malloc(1);
+            malloc_counter++;
+            pointer_holder[index] =  ptr;
+            index++;
+            continue;
+        }
+        if (operation == 0 && (malloc_counter - free_counter) > 0){
+            free(pointer_holder[free_counter]);
+            free_counter++;
+        }
+        
+    }
+    while ((malloc_counter - free_counter) > 0){
+        free(pointer_holder[free_counter]);
+        free_counter++;
+    }
+    print();
+    return 1;
+}
+
+int testD(){
+    int operation = 0;
+    int malloc_counter = 0;
+    int free_counter = 0;
+    void *pointer_holder [50];
+    //int total_malloced = 0;
+    int index = 0;
+    srand(time(NULL));
+    while(1){
+        if (malloc_counter == 50) break;
+        operation = rand() % 2;
+        if (operation == 1){
+            int malloc_size = rand() % 64;
+            malloc_size++;
+            void *ptr = malloc(malloc_size);
+            //total_malloced += (malloc_size + 2);
+            pointer_holder[index] = ptr;
+            index++;
+            malloc_counter++;
+            continue;
+        }
+        if (operation == 0 && (malloc_counter - free_counter) > 0){
+            free(pointer_holder[free_counter]);
+            free_counter++;
+        }
+    
+    }
+    while ((malloc_counter - free_counter) > 0){
+        free(pointer_holder[free_counter]);
+        free_counter++;
+    }
+    print();
+    //printf("total malloced = %d\n", total_malloced);
+    return 1;
+    
+    
+    
+    
 }
 
