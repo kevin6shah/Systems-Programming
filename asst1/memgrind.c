@@ -157,7 +157,7 @@ int testE(){
     }
     int free_counter = 0;
     while (free_counter < 1364){
-        int i = rand() % 1365;
+        int i = rand() % 1364;
         if (pointer_holder[i] != NULL){
             free(pointer_holder[i]);
             //print();
@@ -174,10 +174,45 @@ int testE(){
 }
 
 
-
+//will completely allocate the myblock in chunks of 100
+//make 40 blocks
+/*then free random blocks
+ *then reallocate memory in size of 33
+ *do this 150 times
+ *then free the rest of the space
+ */
 int testF(){
+    srand(time(NULL));
+    int malloc_counter = 0;
+    int index = 0;
+    void *pointer_holder[200];
+    while (malloc_counter < 40){
+        pointer_holder[index] = malloc(100);
+        malloc_counter++;
+        index++;
+    }
     
-    
-    
+    //index++;
+    malloc_counter--;
+    int i = 0;
+    while(i < 150){
+        int ind = rand() % malloc_counter;
+        if (pointer_holder[ind] == NULL) continue;
+        free(pointer_holder[ind]);
+        pointer_holder[ind] = NULL;
+        pointer_holder[index] = malloc(33);
+        index++;
+        malloc_counter++;
+        i++;
+        }
+    int j;
+    for(j = 0; j < malloc_counter+1; j++){
+        if (pointer_holder[j] == NULL) continue;
+        free(pointer_holder[j]);
+    }
+             
+    print();
+    return 1;
+             
 }
 
