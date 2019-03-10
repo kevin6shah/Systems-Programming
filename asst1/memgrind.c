@@ -9,25 +9,55 @@ int testE();
 int testF();
 
 int main(int argc, char** argv) {
-	if (testA()) {
-		printf("TestA Success!\n");
-	}
-	if (testB()) {
-		printf("TestB Success!\n");
-	}
-    if (testC()) {
-        printf("TestC Success!\n");
+	double timeTaken;
+	double A = 0.0, B = 0.0, C = 0.0, D = 0.0, E = 0.0, F = 0.0;
+	int i;
+	clock_t start, end;
+	for (i = 0; i < 100; i++) {
+		start = clock();
+		testA();
+   		end = clock();
+    	timeTaken = (double)(end-start)/CLOCKS_PER_SEC;
+    	A+=timeTaken;
+    	start = clock();
+		testB();
+   		end = clock();
+    	timeTaken = (double)(end-start)/CLOCKS_PER_SEC;
+    	B+=timeTaken;
+    	start = clock();
+		testC();
+   		end = clock();
+    	timeTaken = (double)(end-start)/CLOCKS_PER_SEC;
+    	C+=timeTaken;
+    	start = clock();
+		testD();
+   		end = clock();
+    	timeTaken = (double)(end-start)/CLOCKS_PER_SEC;
+    	D+=timeTaken;
+    	start = clock();
+		testE();
+   		end = clock();
+    	timeTaken = (double)(end-start)/CLOCKS_PER_SEC;
+    	E+=timeTaken;
+    	start = clock();
+		testF();
+   		end = clock();
+    	timeTaken = (double)(end-start)/CLOCKS_PER_SEC;
+    	F+=timeTaken;
     }
-    if (testD()) {
-        printf("TestD Success!\n");
-    }
-    if (testE()) {
-        printf("TestE Success!\n");
-    }
-    if (testF()) {
-        printf("TestF Success!\n");
-    }
-    
+    A/=100;
+    printf("Average Time Taken by Test Case A: %f seconds\n", A);
+    B/=100;
+    printf("Average Time Taken by Test Case B: %f seconds\n", B);
+    C/=100;
+    printf("Average Time Taken by Test Case C: %f seconds\n", C);
+    D/=100;
+    printf("Average Time Taken by Test Case D: %f seconds\n", D);
+    E/=100;
+    printf("Average Time Taken by Test Case E: %f seconds\n", E);
+    F/=100;
+    printf("Average Time Taken by Test Case F: %f seconds\n", F);
+    return 0;
 }
 
 
@@ -38,7 +68,6 @@ int testA() {
 		if (ptr == NULL) return 0;
 		free(ptr);
 	}
-	print();
 	return 1;
 }
  
@@ -67,7 +96,6 @@ int testB() {
 			}
 		}
 	}
-	print();
 	return 1;
 }
 
@@ -99,7 +127,6 @@ int testC(){
         free(pointer_holder[free_counter]);
         free_counter++;
     }
-    print();
     return 1;
 }
 
@@ -134,7 +161,6 @@ int testD(){
         free(pointer_holder[free_counter]);
         free_counter++;
     }
-    print();
     //printf("total malloced = %d\n", total_malloced);
     return 1;
 
@@ -165,7 +191,6 @@ int testE(){
             pointer_holder[i] = NULL;
         }
     }
-    print();
     return 1;
     
     
@@ -210,8 +235,6 @@ int testF(){
         if (pointer_holder[j] == NULL) continue;
         free(pointer_holder[j]);
     }
-             
-    print();
     return 1;
              
 }
