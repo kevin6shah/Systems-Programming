@@ -1,5 +1,6 @@
 #include "mymalloc.h"
 #include <time.h>
+#include <sys/time.h>
 
 int testA();
 int testB();
@@ -24,7 +25,7 @@ int main(int argc, char** argv) {
    		gettimeofday(&end, NULL);
     	timeTaken = (long double)((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec));
     	B+=timeTaken;
-    	 gettimeofday(&start, NULL);
+    	gettimeofday(&start, NULL);
 		testC();
    		gettimeofday(&end, NULL);
     	timeTaken = (long double)((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec));
@@ -34,7 +35,7 @@ int main(int argc, char** argv) {
    		gettimeofday(&end, NULL);
     	timeTaken = (long double)((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec));
     	D+=timeTaken;
-    	        gettimeofday(&start, NULL);
+    	gettimeofday(&start, NULL);
 		testE();
    		gettimeofday(&end, NULL);
     	timeTaken = (long double)((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec));
