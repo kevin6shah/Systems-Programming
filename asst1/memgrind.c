@@ -47,17 +47,17 @@ int main(int argc, char** argv) {
     }
     
     A/=100;
-    printf("Average Time Taken by Test Case A: %.*Lf microseconds\n",8, A);
+    printf("Average Time Taken by Test Case A: %.*Lf microseconds\n",2, A);
     B/=100;
-    printf("Average Time Taken by Test Case B: %.*Lf microseconds\n",8, B);
+    printf("Average Time Taken by Test Case B: %.*Lf microseconds\n",2, B);
     C/=100;
-    printf("Average Time Taken by Test Case C: %.*Lf microseconds\n", 8,C);
+    printf("Average Time Taken by Test Case C: %.*Lf microseconds\n", 2,C);
     D/=100;
-    printf("Average Time Taken by Test Case D: %.*Lf microseconds\n",8, D);
+    printf("Average Time Taken by Test Case D: %.*Lf microseconds\n",2, D);
     E/=100;
-    printf("Average Time Taken by Test Case E: %.*Lf microseconds\n",8, E);
+    printf("Average Time Taken by Test Case E: %.*Lf microseconds\n",2, E);
     F/=100;
-    printf("Average Time Taken by Test Case F: %.*Lf microseconds\n",8, F);
+    printf("Average Time Taken by Test Case F: %.*Lf microseconds\n",2, F);
     
     return 0;
 }
