@@ -5,6 +5,8 @@ int testA();
 int testB();
 int testC();
 int testD();
+int testE();
+int testF();
 
 int main(int argc, char** argv) {
 	if (testA()) {
@@ -19,6 +21,13 @@ int main(int argc, char** argv) {
     if (testD()) {
         printf("TestD Success!\n");
     }
+    if (testE()) {
+        printf("TestE Success!\n");
+    }
+    if (testF()) {
+        printf("TestF Success!\n");
+    }
+    
 }
 
 
@@ -128,7 +137,22 @@ int testD(){
     print();
     //printf("total malloced = %d\n", total_malloced);
     return 1;
+
+}
+
+//will allocate memory in random intervals
+//till reaches maximum capacity
+int testE(){
     
+    
+    
+    
+    
+}
+
+
+
+int testF(){
     
     
     
