@@ -140,10 +140,33 @@ int testD(){
 
 }
 
-//will allocate memory in random intervals
-//till reaches maximum capacity
+//will allocate array to maximum capacity in mallocs of 1 byte
+//1364 mallocs will fill myblock 4092/4096 bytes
+//due to fragmentation, it will actually fill it 4094/4096 bytes
+//the two missing bytes are the magic number
+//then free each byte randomly
 int testE(){
-    
+    int malloc_counter = 0;
+    int index = 0;
+    void *pointer_holder[1364];
+    srand(time(NULL));
+    while(malloc_counter < 1364){
+        pointer_holder[index] = malloc(1);
+        malloc_counter++;
+        index++;
+    }
+    int free_counter = 0;
+    while (free_counter < 1364){
+        int i = rand() % 1365;
+        if (pointer_holder[i] != NULL){
+            free(pointer_holder[i]);
+            //print();
+            free_counter++;
+            pointer_holder[i] = NULL;
+        }
+    }
+    print();
+    return 1;
     
     
     
