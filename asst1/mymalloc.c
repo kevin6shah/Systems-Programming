@@ -92,16 +92,8 @@ void print() {
 //If it points correctly to a block (first byte), it will return the metadata of the previous block to be used later.
 // if it returns a -2, the first block is being freed.
 int check(void *ptr){
-	int i, chk = 0;
-	for (i = 0; i < 4096; i++) {	// Basically checks if the pointer given is within the range of our char array
-		if (ptr == (void*)&myblock[i]) {
-			chk = 1;
-			break;
-		}
-	}
-    if(chk == 0 || (*(short*)(ptr-metadata_size)) < 0) {
-        return -6000;
-    }
+	int i = 0;
+    if (ptr <  (void*)&myblock[0] || ptr > (void*)&myblock[4095]) return -6000; //out of bounds
     i = 2; //will start of pointing to the first metadata block.
     int prev_metadata = -5000;
     while (i <= 4094){
@@ -109,17 +101,17 @@ int check(void *ptr){
         memcpy(&metadata, myblock + i, metadata_size);
         void *pointer = &myblock[metadata_size + i];
         if (ptr == pointer){ //correct free passed;
-            
+            if ((*(short*)(ptr-metadata_size)) < 0) return -6001; //ptr is already free.
             return (prev_metadata);
         }
-        if (ptr < pointer){
-            return -6000;
+        if (ptr < pointer){ //not pointing to start of allocated block.
+            return -6002;
         }
         
         prev_metadata = metadata;
         i = i + metadata_size + abs(metadata);
     }
-    return -6000;
+    return -6003;
 }
 
 //merges adjacent free blocks together
@@ -164,9 +156,22 @@ void merge(void *ptr, void* prev_pointer){
 void myfree(void *ptr, char* FILE, int LINE) {
     int status = check(ptr);
     if (status == -6000){
+        fprintf(stderr, "ERROR: Line %d of %s: Pointer is out of bounds. Failed to free!\n", LINE, FILE);
+        return;
+    }
+    if (status == -6001){
+        fprintf(stderr, "ERROR: Line %d of %s: Pointer is already free, cannot free!\n", LINE, FILE);
+        return;
+    }
+    if (status == -6002){
+        fprintf(stderr, "ERROR: Line %d of %s: Pointer is not pointing to start of memory block. Failed to free!\n", LINE, FILE);
+        return;
+    }
+    if (status == -6003){
         fprintf(stderr, "ERROR: Line %d of %s: Failed to free!\n", LINE, FILE);
         return;
     }
+
     *(short *)(ptr - metadata_size) = -1 * (*(short *) (ptr-metadata_size)); //block is freed, yay.
     if (status == -5000){
         merge(ptr, NULL);

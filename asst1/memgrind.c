@@ -9,54 +9,56 @@ int testE();
 int testF();
 
 int main(int argc, char** argv) {
-	double timeTaken;
-	double A = 0.0, B = 0.0, C = 0.0, D = 0.0, E = 0.0, F = 0.0;
+	long double timeTaken;
+	long double A = 0.0, B = 0.0, C = 0.0, D = 0.0, E = 0.0, F = 0.0;
 	int i;
 	clock_t start, end;
 	for (i = 0; i < 100; i++) {
 		start = clock();
 		testA();
    		end = clock();
-    	timeTaken = (double)(end-start)/CLOCKS_PER_SEC;
+    	timeTaken = (long double)(end-start)/CLOCKS_PER_SEC;
     	A+=timeTaken;
     	start = clock();
 		testB();
    		end = clock();
-    	timeTaken = (double)(end-start)/CLOCKS_PER_SEC;
+    	timeTaken = (long double)(end-start)/CLOCKS_PER_SEC;
     	B+=timeTaken;
     	start = clock();
 		testC();
    		end = clock();
-    	timeTaken = (double)(end-start)/CLOCKS_PER_SEC;
+    	timeTaken = (long double)(end-start)/CLOCKS_PER_SEC;
     	C+=timeTaken;
     	start = clock();
 		testD();
    		end = clock();
-    	timeTaken = (double)(end-start)/CLOCKS_PER_SEC;
+    	timeTaken = (long double)(end-start)/CLOCKS_PER_SEC;
     	D+=timeTaken;
     	start = clock();
 		testE();
    		end = clock();
-    	timeTaken = (double)(end-start)/CLOCKS_PER_SEC;
+    	timeTaken = (long double)(end-start)/CLOCKS_PER_SEC;
     	E+=timeTaken;
     	start = clock();
 		testF();
    		end = clock();
-    	timeTaken = (double)(end-start)/CLOCKS_PER_SEC;
+    	timeTaken = (long double)(end-start)/CLOCKS_PER_SEC;
     	F+=timeTaken;
     }
+    
     A/=100;
-    printf("Average Time Taken by Test Case A: %f seconds\n", A);
+    printf("Average Time Taken by Test Case A: %.*Lf seconds\n",8, A);
     B/=100;
-    printf("Average Time Taken by Test Case B: %f seconds\n", B);
+    printf("Average Time Taken by Test Case B: %.*Lf seconds\n",8, B);
     C/=100;
-    printf("Average Time Taken by Test Case C: %f seconds\n", C);
+    printf("Average Time Taken by Test Case C: %.*Lf seconds\n", 8,C);
     D/=100;
-    printf("Average Time Taken by Test Case D: %f seconds\n", D);
+    printf("Average Time Taken by Test Case D: %.*Lf seconds\n",8, D);
     E/=100;
-    printf("Average Time Taken by Test Case E: %f seconds\n", E);
+    printf("Average Time Taken by Test Case E: %.*Lf seconds\n",8, E);
     F/=100;
-    printf("Average Time Taken by Test Case F: %f seconds\n", F);
+    printf("Average Time Taken by Test Case F: %.*Lf seconds\n",8, F);
+    
     return 0;
 }
 
