@@ -1,3 +1,6 @@
+
+
+
 This file describe the additional two workloads we created for testing.
 
 Workload E: The purpose of this workload was to ensure free is working correctly.
@@ -21,3 +24,8 @@ Finally after freeing and mallocing 150 times, the rest of the pointers were fre
 This workload ensured that the first-fit algorithm of the malloc worked.
 It checked that when mallocing, the process we envisioned in our head was implemented correctly.
 It checked that the myblock was correctly structured, and allowed for mallocing in random but specific blocks of memory.
+
+
+
+
+

@@ -87,10 +87,10 @@ void print() {
 }
 
 // will check if ptr points to the beginning of the block
-//if it points to metadata or middle of a block will return -1
-//if it is outside of the bounds of the array, it will return a -1
+//if it points to metadata or middle of a block will return -6002
+//if it is outside of the bounds of the array, it will return a -6000
 //If it points correctly to a block (first byte), it will return the metadata of the previous block to be used later.
-// if it returns a -2, the first block is being freed.
+// if it returns a -5000, the first block is being freed.
 int check(void *ptr){
 	int i = 0;
     if (ptr <  (void*)&myblock[0] || ptr > (void*)&myblock[4095]) return -6000; //out of bounds
