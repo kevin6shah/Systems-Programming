@@ -1,0 +1,31 @@
+
+
+
+This file describe the additional two workloads we created for testing.
+
+Workload E: The purpose of this workload was to ensure free is working correctly.
+First thing was done, was the entire myblock was allocated in malloc calls of one byte.
+All the pointers were stored in a array.
+Next, using the rand() function, a random index to array was selected and freed.
+If it was already free, the value of it was set to NULL, and there was checking to make sure the pointers weren't freed redundantly.
+The rand() function was called until every pointer was freed and there was one single memory block of 4092 free space.
+
+This workload ensures that free is working 100% accurately.
+This checked basically any combination of free/occupied block arrangements, will allow free to work correctly.
+By running this same workload 100 times, it ensured that every combination of free call works without error.
+
+
+Workload F: The purpose of the workload was to ensure malloc worked correctly.
+It consisted of completely saturating the myblock by malloc calls of 100 bytes done 40 times.
+The pointers generated would be stored in an array.
+Next using the rand() function, a random pointer was freed, and immediately after the malloc function was called of 33 bytes.
+Finally after freeing and mallocing 150 times, the rest of the pointers were freed.
+
+This workload ensured that the first-fit algorithm of the malloc worked.
+It checked that when mallocing, the process we envisioned in our head was implemented correctly.
+It checked that the myblock was correctly structured, and allowed for mallocing in random but specific blocks of memory.
+
+
+
+
+

@@ -1,6 +1,6 @@
 #include "compressor.h"
 
-void test(char* str) {
+void test(char* str, int fd) {
 	DIR *directory = opendir(str);
 	struct dirent* temp;
 	if (directory == NULL) {
@@ -15,12 +15,19 @@ void test(char* str) {
 			strcat(buffer, "/");
 			strcat(buffer, temp->d_name);
 			buffer[strlen(buffer)] = '\0';
-			test(buffer);
+			test(buffer, fd);
 			free(buffer);
 		}
 		else {
 			if (!(i < 2)) {
-				printf("%s/%s\n", str, temp->d_name);
+				int count = 3+strlen(str)+temp->d_reclen;
+				char* buffer = malloc(count);
+				strcpy(buffer, str);
+				strcat(buffer, "/");
+				strcat(buffer, temp->d_name);
+				buffer[strlen(buffer)] = '\0';
+				buffer[strlen(buffer)] = '\n';
+				write(fd, buffer, count);
 			}
 		}
 		i++;
