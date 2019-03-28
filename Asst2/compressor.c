@@ -10,7 +10,7 @@ void test(char* str) {
 	int i = 0;
 	while ((temp = readdir(directory)) != NULL) {
 		if (temp->d_type == 4 && strcmp(temp->d_name, ".") != 0 && strcmp(temp->d_name, "..") != 0) {
-			char* buffer = malloc(2+temp->d_namlen+strlen(str));
+			char* buffer = malloc(2+temp->d_reclen+strlen(str));
 			strcpy(buffer, str);
 			strcat(buffer, "/");
 			strcat(buffer, temp->d_name);
