@@ -10,5 +10,6 @@
 #include <fcntl.h> 
 
 void test(char* str, int fd);
+void tokenize(char* str);
 
 #endif

@@ -34,3 +34,30 @@ void test(char* str, int fd) {
 	}
 	closedir(directory);
 }
+
+void tokenize(char* str) {
+	int fd = open(str, O_RDONLY);
+	if (fd == -1) {
+		printf("ERROR\n");
+		return;
+	}
+	char temp;
+	int result, counter;
+	while ((result = read(fd, &temp, 1)) != 0) {
+		counter++;
+	}
+	close(fd);
+	fd = open(str, O_RDONLY);
+	char *buffer = malloc(++counter);
+	result = read(fd, buffer, counter);
+	if (result == -1) {
+		printf("ERROR 2\n");
+		return;
+	}
+	buffer[result] = '\0';
+	char* token = strtok(buffer, " ");
+	while (token != NULL) {
+		printf("%s\n", token);
+		token = strtok(NULL, " ");
+	}
+}	
