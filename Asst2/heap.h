@@ -1,8 +1,7 @@
 #ifndef _HEAP
 #define _HEAP
 
-#include <stdio.h>
-#include <stdlib.h>
+#include "compressor.h"
 
 typedef struct {
 	int frequency;
@@ -13,7 +12,7 @@ int capacity;
 int size;
 heapNode *heap;
 
-void initializeHeap();
+void initializeHeap(int num);
 int getLeftChildIndex(int parentIndex);
 int getRightChildIndex(int parentIndex);
 int getParentIndex(int childIndex);

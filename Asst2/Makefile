@@ -5,4 +5,4 @@ compile: fileCompressor.c compressor.c
 	gcc fileCompressor.c compressor.o -o data.o -o fileCompressor
 
 clean:
-	rm -rf compressor.o fileCompressor
+	rm -rf compressor.o fileCompressor data.o

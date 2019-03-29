@@ -1,7 +1,7 @@
 #include "heap.h"
 
-void initializeHeap() {
-	capacity = 20;
+void initializeHeap(int num) {
+	capacity = num;
 	size = 0;
 	heap = malloc(sizeof(heapNode)*capacity);
 }

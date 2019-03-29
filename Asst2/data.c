@@ -2,15 +2,6 @@
 
 //first create struct HashTable
 
-#define TABLESIZE 5000
-
-typedef struct HashNode {
-    
-    int freq;
-    char *token;
-    struct HashNode *next;
-}hashnode;
-
 
 hashnode** createTable(){
     hashnode** HashTable = malloc (TABLESIZE * sizeof(hashnode*));
@@ -58,14 +49,4 @@ void hashInsert(char *token, hashnode** table){
     hashnode* temp = createNode(token);
     prev->next = temp;
     return;
-}
-
-
-int main(int argc, char *argv[]){
-    hashnode **HashTable = createTable();
-    char string[] = "a";
-    char s[] = "a";
-    hashInsert(string, HashTable);
-    hashInsert(s, HashTable);
-    printf("%d\n", HashTable[97]->freq);
 }
