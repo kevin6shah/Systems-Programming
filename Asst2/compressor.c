@@ -1,4 +1,5 @@
 #include "compressor.h"
+#include "data.h"
 
 void test(char* str, int fd) {
 	DIR *directory = opendir(str);
@@ -35,11 +36,11 @@ void test(char* str, int fd) {
 	closedir(directory);
 }
 
-void tokenize(char* str) {
+char* tokenize(char* str) {
 	int fd = open(str, O_RDONLY);
 	if (fd == -1) {
 		printf("ERROR\n");
-		return;
+		return NULL;
 	}
 	char temp;
 	int result, counter;
@@ -52,14 +53,19 @@ void tokenize(char* str) {
 	result = read(fd, buffer, counter);
 	if (result == -1) {
 		printf("ERROR 2\n");
-		return;
+		return NULL;
 	}
 	buffer[result] = '\0';
+    //int key = getkey("hello");
+    /*
 	char* token = strtok(buffer, " ");
 	while (token != NULL) {
 		printf("%s\n", token);
+        
 		token = strtok(NULL, " ");
 	}
+     */
+    return buffer;
     
 }	
 

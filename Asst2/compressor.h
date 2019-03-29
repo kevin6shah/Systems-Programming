@@ -11,6 +11,6 @@
 #include "data.h"
 
 void test(char* str, int fd);
-void tokenize(char* str);
+char* tokenize(char* str);
 
 #endif
