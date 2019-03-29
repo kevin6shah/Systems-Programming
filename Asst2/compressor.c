@@ -60,4 +60,6 @@ void tokenize(char* str) {
 		printf("%s\n", token);
 		token = strtok(NULL, " ");
 	}
+    
 }	
+

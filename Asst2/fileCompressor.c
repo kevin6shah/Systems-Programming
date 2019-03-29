@@ -5,12 +5,17 @@ int main(int argc, char** argv) {
 		printf("Error!\n");
 		return 0;
 	}
-	int fd = open("test.test", O_WRONLY | O_CREAT);
+    /*
+	int fd = open("test.test", O_WRONLY | O_CREAT, 0700);
 	if (fd == -1) {
 		printf("Error 2!\n");
 		return 0;
 	}
-	test(argv[1], fd);
-	//tokenize(argv[1]);
+     
+     */
+    
+    
+	//test(argv[1], fd);
+	tokenize(argv[1]);
 	return 0;
 }
