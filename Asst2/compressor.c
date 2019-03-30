@@ -55,15 +55,29 @@ char* tokenize(char* str) {
 		return NULL;
 	}
 	buffer[result] = '\0';
-    //int key = getkey("hello");
-    
-	char* token = strtok(buffer, " ");
-	while (token != NULL) {
-		printf("%s\n", token);
-        
-		token = strtok(NULL, " ");
-	}
     return buffer;
     
-}	
+}
 
+
+
+/*
+char* tokenize(char *str){
+    char * buffer = 0;
+    int length;
+    FILE *fd = fopen(str, "rb");
+    if (fd){
+        fseek(fd,0, SEEK_END);
+        length = ftell (fd);
+        fseek(fd, 0, SEEK_SET);
+        buffer = malloc (length + 1);
+        if (buffer){
+            fread(buffer, 1, length, fd);
+        }
+        fclose(fd);
+    }
+    buffer[length] = '\0';
+    return buffer;
+}
+ 
+ */

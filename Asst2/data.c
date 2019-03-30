@@ -50,3 +50,17 @@ void hashInsert(char *token, hashnode** table){
     prev->next = temp;
     return;
 }
+
+void printHash(hashnode** table){
+    int i;
+    while (i < TABLESIZE){
+        if (table[i] != NULL){
+            hashnode *ptr = table[i];
+            while(ptr!= NULL){
+                printf("Token: %s, Freq: %d\n", ptr->token, ptr->freq);
+                ptr = ptr->next;
+            }
+        }
+        i++;
+    }
+}

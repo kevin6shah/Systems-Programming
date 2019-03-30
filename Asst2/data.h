@@ -18,5 +18,6 @@ int getkey(char *token);
 hashnode** createTable();
 hashnode* createNode(char* token);
 void hashInsert(char *token, hashnode** table);
+void printHash(hashnode** table);
 
 #endif
