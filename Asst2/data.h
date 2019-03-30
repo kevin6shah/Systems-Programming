@@ -1,7 +1,12 @@
 #ifndef DATA
 #define DATA
 #define TABLESIZE 5000
-#include "compressor.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+
+#include <string.h>
+
 
 typedef struct HashNode {
     int freq;

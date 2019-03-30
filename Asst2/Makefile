@@ -1,8 +1,8 @@
 all: compile
 
-compile: fileCompressor.c compressor.c
+compile: fileCompressor.c compressor.c data.c heap.c
 	gcc -c compressor.c data.c heap.c
-	gcc fileCompressor.c compressor.o -o data.o -o heap.o -o fileCompressor
+	gcc fileCompressor.c compressor.o -o fileCompressor.c data.o -o fileCompressor.c heap.o -o fileCompressor
 
 clean:
 	rm -rf compressor.o fileCompressor data.o heap.o
