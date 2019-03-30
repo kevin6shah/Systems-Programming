@@ -35,5 +35,6 @@ heapNode* pull();
 void add(heapNode* item);
 void heapifyUp();
 void heapifyDown();
+void printHeap();
 
 #endif

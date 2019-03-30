@@ -93,3 +93,11 @@ void heapifyDown() {
 		index = smallestIndex;
 	}
 }
+
+void printHeap(){
+    int i = 0;
+    while (i < size){
+        printf("token: %s freq: %d\n", heap[i].token, heap[i].frequency);
+        i++;
+    }
+}

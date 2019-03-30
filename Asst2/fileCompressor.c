@@ -76,6 +76,7 @@ int main(int argc, char* argv[]){
     int cap = store(HASHTABLE, buffer, len);
     //printHash(HASHTABLE);
     initializeHeap(cap);
+    printHeap();
     
     
 }
