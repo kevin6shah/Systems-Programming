@@ -60,7 +60,7 @@ void traverse(treeNode* node) {
 		traverse(node->left);
 		printf("%s %d ", node->token, node->frequency);
 		traverse(node->right);
-	} return;
+	}
 }
 
 void heapifyDownHuffman() {
@@ -113,56 +113,56 @@ void merge() {
 	addTreeNode(merger);
 }
 
+// TRYING TO FIGURE OUT HOW TO GET TO PRINT THE PATH FROM THE TREE
 
+void bitCode(treeNode* node, int bit, char direction) {
+	/*
+	if (node == NULL) return;
+	if (direction == 'L') printf("0");
+	else if (direction == 'R') printf("1");
+	if (strcmp(node->token, "***") != 0) {
+		printf("\t%s\n", node->token);
+	}
+	bit<<=1;
+	bitCode(node->left, bit, 'L');
+	bitCode(node->right, bit+1, 'R');
+	*/
+	
+	
+}
 
 int main(int argc, char** argv) {
 	initializeHeap(15);
 	heapNode* node = malloc(sizeof(heapNode));
-	node->frequency = 9;
-	node->token = "dog";
+	node->frequency = 45;
+	node->token = "A";
 	add(node);
 	heapNode* node1 = malloc(sizeof(heapNode));
-	node1->frequency = 12;
-	node1->token = "cat";
+	node1->frequency = 4;
+	node1->token = "B";
 	add(node1);
 	heapNode* node2 = malloc(sizeof(heapNode));
-	node2->frequency = 16;
-	node2->token = "ball";
+	node2->frequency = 67;
+	node2->token = "C";
 	add(node2);
 	heapNode* node3 = malloc(sizeof(heapNode));
-	node3->frequency = 5;
-	node3->token = "a";
+	node3->frequency = 54;
+	node3->token = "D";
 	add(node3);
 	heapNode* node4 = malloc(sizeof(heapNode));
-	node4->frequency = 13;
-	node4->token = "button";
+	node4->frequency = 2;
+	node4->token = "E";
 	add(node4);
 	heapNode* node5 = malloc(sizeof(heapNode));
-	node5->frequency = 45;
-	node5->token = "and";
+	node5->frequency = 23;
+	node5->token = "F";
 	add(node5);
 	
-	printf("HERE\n");
 	initializeTreeHeap();
-	
-	int i;
-	for (i = 0; i < huffmanSize; i++) printf("%s %d ", treeHeap[i]->token, treeHeap[i]->frequency);
-	
-	printf("\n");
-	/*while (peekTreeNode() != NULL) {
-		treeNode* temp = pullTreeNode();
-		printf("%s %d ", temp->token, temp->frequency);
-	}
-	printf("\n");*/
 	while (huffmanSize != 1) {
 		merge();
 	}
-	
-	/*printf("%s %d ", treeHeap[0]->left->token, treeHeap[0]->left->frequency);
-	printf("%s %d ", treeHeap[0]->token, treeHeap[0]->frequency);
-	printf("%s %d ", treeHeap[0]->right->token, treeHeap[0]->right->frequency);
-	printf("%s %d ", treeHeap[0]->right->left->token, treeHeap[0]->right->left->frequency);
-	*/
-	traverse(treeHeap[0]);
+	// TRYING TO FIGURE OUT HOW TO GET TO PRINT THE PATH FROM THE TREE
+	bitCode(treeHeap[0], 0, '*');
 	return 0;
 }
