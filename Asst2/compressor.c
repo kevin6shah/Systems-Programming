@@ -54,7 +54,7 @@ char* tokenize(char* str) {
 		printf("ERROR 2\n");
 		return NULL;
 	}
-	buffer[result] = '\0';
+	buffer[result-1] = '\0';
     return buffer;
     
 }

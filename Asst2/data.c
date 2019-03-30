@@ -30,37 +30,54 @@ int getkey(char *token){
     return key;
 }
 
-void hashInsert(char *token, hashnode** table){
+int hashInsert(char *token, hashnode** table){
     int key = getkey(token);
     if (table[key] == NULL){
         table[key] = createNode(token);
-        return;
+        return 1;
     }
     hashnode* ptr = table[key];
     hashnode* prev = table[key];
     while (ptr != NULL){
         if (strcmp(ptr->token, token) == 0){
             ++ptr->freq;
-            return;
+            return 0;
         }
         prev = ptr;
         ptr = ptr->next;
     }
     hashnode* temp = createNode(token);
     prev->next = temp;
-    return;
+    return 1;
 }
 
 void printHash(hashnode** table){
-    int i;
+    int i = 0;
     while (i < TABLESIZE){
         if (table[i] != NULL){
             hashnode *ptr = table[i];
             while(ptr!= NULL){
-                printf("Token: %s, Freq: %d\n", ptr->token, ptr->freq);
+                if ((int)ptr->token[0] == 32){
+                    printf("Token: space Freq: %d\n",  ptr->freq);
+                    ptr=ptr->next;
+                    continue;
+                }
+                if ((int)ptr->token[0] == 9){
+                    printf("Token: tab Freq: %d\n",  ptr->freq);
+                    ptr=ptr->next;
+                    continue;
+                }
+                if ((int)ptr->token[0] == 10){
+                    printf("Token: NL Freq: %d\n",  ptr->freq);
+                    ptr=ptr->next;
+                    continue;
+                }
+                
+                printf("Token: %s Freq: %d\n", ptr->token, ptr->freq);
                 ptr = ptr->next;
             }
         }
         i++;
     }
+    ////printf("tab?: %d", table[9]->freq);
 }

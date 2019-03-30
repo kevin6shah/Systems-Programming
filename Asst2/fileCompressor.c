@@ -10,8 +10,9 @@ int spacecheck(char c){
 }
 
 //turn buffer string, and input tokens into the HashTable
-void store(hashnode **HASH, char *buffer, int len){
-    int i;
+int store(hashnode **HASH, char *buffer, int len){
+    int total = 0;
+    int i = 0;
     int startIndex = 0;
     int endIndex = 0;
     int notspace = 0;
@@ -24,21 +25,42 @@ void store(hashnode **HASH, char *buffer, int len){
             }
             char *temp = malloc (((endIndex-startIndex)+2)*sizeof(char));
             strncpy(temp, buffer + startIndex, endIndex - startIndex);
-            hashInsert(temp,HASH);
-            //printf("%s\n", temp);
+            total += hashInsert(temp,HASH);
             i = endIndex;
             continue;
         }
         if (spacecheck(buffer[i])==0){
             char *temp = malloc (2*sizeof(char));
             strncpy(temp, buffer + i, 1);
-            //printf("%d\n",(int)buffer[i]);
-            hashInsert(temp,HASH);
+            temp[1] = '\0';
+            total += hashInsert(temp,HASH);
             i++;
             continue;
         }
+        
     }
+    return total;
     
+}
+
+void makeHeap(hashnode **table){
+    int i = 0;
+    while (i < TABLESIZE){
+        if (table[i] != NULL){
+            hashnode *ptr = table[i];
+            while(ptr!= NULL){
+                heapNode *temp = malloc (sizeof(heapNode));
+                temp->frequency = ptr->freq;
+                int len = strlen(ptr->token) + 1;
+                temp->token = malloc (len *sizeof(char));
+                strcpy(temp->token, ptr->token);
+                add(temp);
+                ptr = ptr->next;
+                
+            }
+        }
+        i++;
+    }
 }
 
 
@@ -51,8 +73,9 @@ int main(int argc, char* argv[]){
     char *buffer = malloc(len*sizeof(char));
     strcpy(buffer, tokenize(argv[1]));
     hashnode **HASHTABLE = createTable();
-    store(HASHTABLE, buffer, len);
-    printHash(HASHTABLE);
+    int cap = store(HASHTABLE, buffer, len);
+    //printHash(HASHTABLE);
+    initializeHeap(cap);
     
     
 }
