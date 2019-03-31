@@ -11,6 +11,6 @@
 
 
 void test(char* str, int fd);
-char* tokenize(char* str);
+char* findBuffer(char* str);
 
 #endif

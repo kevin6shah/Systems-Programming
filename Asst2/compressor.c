@@ -35,7 +35,7 @@ void test(char* str, int fd) {
 	closedir(directory);
 }
 
-char* tokenize(char* str) {
+char* findBuffer(char* str) {
 	int fd = open(str, O_RDONLY);
 	if (fd == -1) {
 		printf("ERROR\n");
@@ -54,30 +54,7 @@ char* tokenize(char* str) {
 		printf("ERROR 2\n");
 		return NULL;
 	}
-	buffer[result-1] = '\0';
+	buffer[result] = '\0';
     return buffer;
     
 }
-
-
-
-/*
-char* tokenize(char *str){
-    char * buffer = 0;
-    int length;
-    FILE *fd = fopen(str, "rb");
-    if (fd){
-        fseek(fd,0, SEEK_END);
-        length = ftell (fd);
-        fseek(fd, 0, SEEK_SET);
-        buffer = malloc (length + 1);
-        if (buffer){
-            fread(buffer, 1, length, fd);
-        }
-        fclose(fd);
-    }
-    buffer[length] = '\0';
-    return buffer;
-}
- 
- */

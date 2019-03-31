@@ -1,6 +1,6 @@
 #include "compressor.h"
 #include "data.h"
-#include "heap.h"
+#include "huffman.h"
 
 //returns 0 if a space character
 //returns 1 if not
@@ -10,7 +10,7 @@ int spacecheck(char c){
 }
 
 //turn buffer string, and input tokens into the HashTable
-int store(hashnode **HASH, char *buffer, int len){
+int tokenize(hashnode **HASH, char *buffer, int len){
     int total = 0;
     int i = 0;
     int startIndex = 0;
@@ -49,14 +49,13 @@ void makeHeap(hashnode **table){
         if (table[i] != NULL){
             hashnode *ptr = table[i];
             while(ptr!= NULL){
-                heapNode *temp = malloc (sizeof(heapNode));
+                treeNode *temp = malloc(sizeof(treeNode));
                 temp->frequency = ptr->freq;
                 int len = strlen(ptr->token) + 1;
-                temp->token = malloc (len *sizeof(char));
+                temp->token = malloc(len * sizeof(char));
                 strcpy(temp->token, ptr->token);
-                add(temp);
+                addTreeNode(temp);
                 ptr = ptr->next;
-                
             }
         }
         i++;
@@ -69,14 +68,16 @@ void makeHeap(hashnode **table){
 
 
 int main(int argc, char* argv[]){
-    int len = strlen(tokenize(argv[1])) + 1;
+    int len = strlen(findBuffer(argv[1])) + 1;
     char *buffer = malloc(len*sizeof(char));
-    strcpy(buffer, tokenize(argv[1]));
+    strcpy(buffer, findBuffer(argv[1]));
     hashnode **HASHTABLE = createTable();
-    int cap = store(HASHTABLE, buffer, len);
+    int cap = tokenize(HASHTABLE, buffer, len);
     //printHash(HASHTABLE);
-    initializeHeap(cap);
-    printHeap();
-    
-    
+    initializeTreeHeap(cap);
+    makeHeap(HASHTABLE);
+    while (huffmanSize != 1) {
+    	merge();
+    }
+    traverse(treeHeap[0]);
 }
