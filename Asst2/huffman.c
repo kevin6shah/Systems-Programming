@@ -1,31 +1,18 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include "heap.h"
+#include "huffman.h"
 
-typedef struct treeNode {
-	int frequency;
-	char* token;
-	struct treeNode* left;
-	struct treeNode* right;
-} treeNode;
-
-treeNode** treeHeap;
-int huffmanSize;
-int huffmanCapacity;
-
-void initializeTreeHeap() {
-	huffmanSize = size;
+void initializeTreeHeap(int size) {
+	huffmanSize = 0;
 	huffmanCapacity = size;
 	treeHeap = malloc(sizeof(treeNode*) * huffmanCapacity);
-	int i;
-	for (i = 0; i < huffmanCapacity; i++) {
-		treeNode *temp = malloc(sizeof(treeNode));
-		temp->frequency = heap[i].frequency;
-		temp->token = heap[i].token;
-		temp->left = NULL;
-		temp->right = NULL;
-		treeHeap[i] = temp;
-	}
+}
+
+int getLeftChildIndex(int parentIndex) { return (2 * parentIndex + 1); }
+int getRightChildIndex(int parentIndex) { return (2 * parentIndex + 2); }
+int getParentIndex(int childIndex) { return (childIndex - 1) / 2; }
+
+int hasParent(int index) {
+	if (getParentIndex(index) >= 0) return 1;
+	return 0;
 }
 
 int leftChildTreeHeap(int index) { return treeHeap[getLeftChildIndex(index)]->frequency; }
@@ -58,7 +45,7 @@ int hasRightChildTree(int index) {
 void traverse(treeNode* node) {
 	if (node != NULL) {
 		traverse(node->left);
-		printf("%s %d ", node->token, node->frequency);
+		printf("%s %d | ", node->token, node->frequency);
 		traverse(node->right);
 	}
 }
@@ -128,41 +115,4 @@ void bitCode(treeNode* node, int bit, char direction) {
 	bitCode(node->right, bit+1, 'R');
 	*/
 	
-	
-}
-
-int main(int argc, char** argv) {
-	initializeHeap(15);
-	heapNode* node = malloc(sizeof(heapNode));
-	node->frequency = 45;
-	node->token = "A";
-	add(node);
-	heapNode* node1 = malloc(sizeof(heapNode));
-	node1->frequency = 4;
-	node1->token = "B";
-	add(node1);
-	heapNode* node2 = malloc(sizeof(heapNode));
-	node2->frequency = 67;
-	node2->token = "C";
-	add(node2);
-	heapNode* node3 = malloc(sizeof(heapNode));
-	node3->frequency = 54;
-	node3->token = "D";
-	add(node3);
-	heapNode* node4 = malloc(sizeof(heapNode));
-	node4->frequency = 2;
-	node4->token = "E";
-	add(node4);
-	heapNode* node5 = malloc(sizeof(heapNode));
-	node5->frequency = 23;
-	node5->token = "F";
-	add(node5);
-	
-	initializeTreeHeap();
-	while (huffmanSize != 1) {
-		merge();
-	}
-	// TRYING TO FIGURE OUT HOW TO GET TO PRINT THE PATH FROM THE TREE
-	bitCode(treeHeap[0], 0, '*');
-	return 0;
 }
