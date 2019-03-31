@@ -2,16 +2,33 @@
 #include <stdlib.h>
 #include "huffman.h"
 
+int skew(treeNode *root){
+    treeNode *ptrL = root;
+    treeNode *ptrR = root;
+    while(ptrL != NULL || ptrR != NULL){
+        if (ptrL == NULL && ptrR != NULL){//long side on right
+            return 0;
+        }
+        if (ptrR == NULL && ptrL != NULL){ //longer side on left
+            return 1;
+        }
+        ptrL = ptrL->left;
+        ptrR = ptrR->right;
+    }
+    return 1;
+}
 
-void huffcoder(treeNode* root, char *code, int index, char* book[], int *bookind){
+
+
+void huffcoderR(treeNode* root, char *code, int index, char* book[], int *bookind){
     
     if (root->right != NULL){
         code[index] = '0';
-        huffcoder(root->right, code, index + 1, book, bookind);
+        huffcoderR(root->right, code, index + 1, book, bookind);
     }
     if (root->left != NULL){
         code[index] = '1';
-        huffcoder(root->left, code, index + 1, book,bookind);
+        huffcoderR(root->left, code, index + 1, book,bookind);
     }
     if (root->left == NULL && root->right == NULL){
         int n = strlen(root->token) + 1;
@@ -22,6 +39,30 @@ void huffcoder(treeNode* root, char *code, int index, char* book[], int *bookind
         ++(*bookind);
     }
 }
+
+void huffcoderL(treeNode* root, char *code, int index, char* book[], int *bookind){
+    
+    
+    if (root->left != NULL){
+        code[index] = '0';
+        huffcoderL(root->left, code, index + 1, book,bookind);
+    }
+    
+    if (root->right != NULL){
+        code[index] = '1';
+        huffcoderL(root->right, code, index + 1, book, bookind);
+    }
+    
+    if (root->left == NULL && root->right == NULL){
+        int n = strlen(root->token) + 1;
+        book[*bookind] = malloc (n + index + 1);
+        strcpy(book[*bookind], code);
+        strcat(book[*bookind], ":");
+        strcat(book[*bookind], root->token);
+        ++(*bookind);
+    }
+}
+
 
 
 
@@ -69,7 +110,14 @@ int main(int argc, char** argv) {
     int bookind = 0;
     char **book = malloc(6 * sizeof(char*)); //replace 6 with total tokens inside
     char *code = malloc(10); //replace 10 with depth of huffmanTree
-    huffcoder(treeHeap[0], code, 0, book, &bookind);
+    int side = skew(treeHeap[0]);
+    if (side == 0){
+        huffcoderL(treeHeap[0], code, 0, book, &bookind);
+    } else {
+        huffcoderR(treeHeap[0], code, 0, book, &bookind);
+        
+    }
+    //huffcoder(treeHeap[0], code, 0, book, &bookind);
     int ind = 0;
     printf("\n");
     while (ind < 6){ //I put 6 here, replace with total tokens inside
