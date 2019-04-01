@@ -28,6 +28,7 @@ int getkey(char *token);
 hashnode** createTable();
 hashnode* createNode(char* token);
 int hashInsert(char *token, hashnode** table);
+void nodeInsert(hashnode* node, hashnode **table);
 void printHash(hashnode** table);
 void initializeTreeHeap(int size);
 int getLeftChildIndex(int parentIndex);

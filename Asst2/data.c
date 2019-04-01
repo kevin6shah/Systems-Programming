@@ -114,6 +114,23 @@ hashnode* createNode(char* token){
     temp->next = NULL;
     return temp;
 }
+void nodeInsert(hashnode* node, hashnode **table){
+    int key = getkey(node->token);
+    if(table[key] == NULL){
+        table[key] = node;
+        return;
+    }
+    hashnode* ptr = table[key];
+    hashnode* prev = table[key];
+    while (ptr != NULL){
+        prev = ptr;
+        ptr = ptr->next;
+    }
+    prev->next = node;
+    return;
+    
+    
+}
 
 int getkey(char *token){
     int len = strlen(token);
@@ -147,6 +164,8 @@ int hashInsert(char *token, hashnode** table){
     prev->next = temp;
     return 1;
 }
+
+
 
 void printHash(hashnode** table){
     int i = 0;
