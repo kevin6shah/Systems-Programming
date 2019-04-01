@@ -1,4 +1,5 @@
 #include "compressor.h"
+#include "data.h"
 
 void test(char* str, int fd) {
 	DIR *directory = opendir(str);
@@ -35,26 +36,31 @@ void test(char* str, int fd) {
 	closedir(directory);
 }
 
-char* findBuffer(char* str) {
+int bufferSize(char* str) {
 	int fd = open(str, O_RDONLY);
-	if (fd == -1) {
-		printf("ERROR\n");
-		return NULL;
+	if (fd <= 0) {
+		printf("Could not open the file: %s\n", str);
+		return -1;
 	}
-	char temp;
-	int result, counter;
-	while ((result = read(fd, &temp, 1)) != 0) {
+	char temp;	// Try taking this temp out
+	int counter;
+	while (read(fd, &temp, 1) != 0) {
 		counter++;
 	}
 	close(fd);
-	fd = open(str, O_RDONLY);
-	char *buffer = malloc(++counter);
-	result = read(fd, buffer, counter);
-	if (result == -1) {
-		printf("ERROR 2\n");
+	return counter;
+}
+
+char* findBuffer(char* str) {
+	int bufSize = bufferSize(str);
+	if (bufSize == -1) return NULL;
+	int fd = open(str, O_RDONLY);
+	char *buffer = malloc(++bufSize);
+	int result = read(fd, buffer, bufSize);
+	if (result < 0) {
+		printf("Could not read the file: %s\n", str);
 		return NULL;
 	}
 	buffer[result] = '\0';
-    return buffer;
-    
+  return buffer;
 }

@@ -8,9 +8,10 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-
+#include "data.h"
 
 void test(char* str, int fd);
 char* findBuffer(char* str);
+int bufferSize(char* str);
 
 #endif

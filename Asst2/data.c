@@ -1,7 +1,104 @@
 #include "data.h"
 
-//first create struct HashTable
+void initializeTreeHeap(int size) {
+	huffmanSize = 0;
+	huffmanCapacity = size;
+	treeHeap = malloc(sizeof(treeNode*) * huffmanCapacity);
+}
 
+int getLeftChildIndex(int parentIndex) { return (2 * parentIndex + 1); }
+int getRightChildIndex(int parentIndex) { return (2 * parentIndex + 2); }
+int getParentIndex(int childIndex) { return (childIndex - 1) / 2; }
+
+int hasParent(int index) {
+	if (getParentIndex(index) >= 0) return 1;
+	return 0;
+}
+
+int leftChildTreeHeap(int index) { return treeHeap[getLeftChildIndex(index)]->frequency; }
+int rightChildTreeHeap(int index) { return treeHeap[getRightChildIndex(index)]->frequency; }
+int parentTreeHeap(int index) { return treeHeap[getParentIndex(index)]->frequency; }
+
+void swapTreeNode(int indexOne, int indexTwo) {
+	treeNode* temp = treeHeap[indexOne];
+	treeHeap[indexOne] = treeHeap[indexTwo];
+	treeHeap[indexTwo] = temp;
+}
+
+treeNode* peekTreeNode() {
+	if (huffmanSize == 0) return NULL;
+	return treeHeap[0];
+}
+
+int hasLeftChildTree(int index) {
+	if (getLeftChildIndex(index) < huffmanSize) {
+		return 1;
+	}
+	return 0;
+}
+
+int hasRightChildTree(int index) {
+	if (getRightChildIndex(index) < huffmanSize) return 1;
+	return 0;
+}
+
+void traverse(treeNode* node) {
+	if (node != NULL) {
+		traverse(node->left);
+		printf("%s %d | ", node->token, node->frequency);
+		traverse(node->right);
+	}
+}
+
+void heapifyDownHuffman() {
+	int index = 0;
+	while (hasLeftChildTree(index)) {
+		int smallestIndex = getLeftChildIndex(index);
+		if (hasRightChildTree(index) && rightChildTreeHeap(index) < leftChildTreeHeap(index)) {
+			smallestIndex = getRightChildIndex(index);
+		}
+		if (treeHeap[index]->frequency < treeHeap[smallestIndex]->frequency) {
+			break;
+		} else {
+			swapTreeNode(index, smallestIndex);
+		}
+		index = smallestIndex;
+	}
+}
+
+treeNode* pullTreeNode() {
+	if (huffmanSize == 0) return NULL;
+	treeNode *temp = treeHeap[0];
+	treeHeap[0] = treeHeap[huffmanSize-1];
+	huffmanSize--;
+	heapifyDownHuffman();
+	return temp;
+}
+
+void heapifyUpHuffman() {
+	int index = huffmanSize - 1;
+	while (hasParent(index) && parentTreeHeap(index) > treeHeap[index]->frequency) {
+		swapTreeNode(getParentIndex(index), index);
+		index = getParentIndex(index);
+	}
+}
+
+void addTreeNode(treeNode *item) {
+	treeHeap[huffmanSize] = item;
+	huffmanSize++;
+	heapifyUpHuffman();
+}
+
+void merge() {
+	treeNode *smallest = pullTreeNode();
+	treeNode *small = pullTreeNode();
+	treeNode *merger = malloc(sizeof(treeNode));
+	merger->frequency = smallest->frequency + small->frequency;
+	merger->token = "***";
+	merger->left = smallest;
+	merger->right = small;
+	addTreeNode(merger);
+}
 
 hashnode** createTable(){
     hashnode** HashTable = malloc (TABLESIZE * sizeof(hashnode*));
@@ -72,7 +169,7 @@ void printHash(hashnode** table){
                     ptr=ptr->next;
                     continue;
                 }
-                
+
                 printf("Token: %s Freq: %d\n", ptr->token, ptr->freq);
                 ptr = ptr->next;
             }
