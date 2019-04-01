@@ -117,7 +117,6 @@ int tokenize(hashnode **HASH, char *buffer, int len){
 
     }
     return total;
-
 }
 
 void makeHeap(hashnode **table){
@@ -182,7 +181,6 @@ void buildRecursiveHelper(char* filePath, hashnode **HASHTABLE, int *cap) {
     }
     else {
       if (!(i < 2)) {
-        if (!(temp->d_name[0] == '.')) {
         int count = 3+strlen(filePath)+temp->d_reclen;
 				char* buffer = malloc(count);
 				strcpy(buffer, filePath);
@@ -194,7 +192,6 @@ void buildRecursiveHelper(char* filePath, hashnode **HASHTABLE, int *cap) {
         char *buffer2 = malloc(len);
         strcpy(buffer2, findBuffer(buffer));
         *cap = *cap + tokenize(HASHTABLE, buffer2, len);
-        }
       }
     }
     i++;
@@ -221,13 +218,10 @@ void buildRecursive(char* filePath, char* huffmanPath) {
   makeCodeBook(path, book);
 }
 
-void compress(char* pathFile, char* pathHuffbook) {
+hashnode** compressInit(char* pathFile, char* pathHuffbook) {
     hashnode** table = createTable();
-    int len = bufferSize(pathFile) + 1;
-    if (len == 0) return;
-    char* file = malloc(len);
-    strcpy(file, findBuffer(pathFile));
-    len = 0;
+
+    int len = 0;
     len = bufferSize(pathHuffbook) + 1;
     if (len == 0) return;
     char* buffer = malloc(len);
@@ -252,7 +246,6 @@ void compress(char* pathFile, char* pathHuffbook) {
         }
         char *token = malloc (((endIndex-startIndex)+2));
         strncpy(token, buffer + startIndex, endIndex - startIndex);
-        printf("%s\n", token);
         if (strcmp("<\\t>", token)==0){
             token = "\t";
         }
@@ -272,10 +265,17 @@ void compress(char* pathFile, char* pathHuffbook) {
         n++;
 
         startIndex = ++endIndex;
-
     }
-    //printHash(table);
-      printf("HERE\n");
+    return table;
+  }
+
+  void compress(char* pathFile, char* pathHuffbook) {
+    hashnode **table = compressInit(pathFile, pathHuffbook);
+    int len = bufferSize(pathFile) + 1;
+    if (len == 0) return;
+    char* file = malloc(len);
+    strcpy(file, findBuffer(pathFile));
+
     //now to actually compress into new file
     char *writePath = malloc (strlen(pathFile) + 5);
     strcpy(writePath,pathFile);
@@ -286,7 +286,7 @@ void compress(char* pathFile, char* pathHuffbook) {
         printf("Error could not create the file!\n");
         return;
     }
-    int i = 0;
+    int i = 0, startIndex = 0, endIndex = 0;
     while (i < strlen(file)-1){
         if (spacecheck(file[i])==1){
             startIndex = i;
@@ -296,9 +296,6 @@ void compress(char* pathFile, char* pathHuffbook) {
             }
             char *temp = malloc (((endIndex-startIndex)+2)*sizeof(char));
             strncpy(temp, file + startIndex, endIndex - startIndex);
-            char *a = malloc(1000);
-            strcpy(a,getBit(temp,table));
-            //printf("%s\n",a);
             write(fd, getBit(temp,table), strlen(getBit(temp,table)));
             i = endIndex;
             continue;
@@ -307,15 +304,82 @@ void compress(char* pathFile, char* pathHuffbook) {
             char *temp = malloc (2*sizeof(char));
             strncpy(temp, file + i, 1);
             temp[1] = '\0';
-            char *a = malloc (1000);
-            strcpy(a,getBit(temp,table));
-            //printf("%s\n",a);
             write(fd, getBit(temp,table), strlen(getBit(temp,table)));
             i++;
             continue;
         }
-
     }
+    close(fd);
+}
+
+void compressRecursive(char* filePath, hashnode** table) {
+  DIR *directory = opendir(filePath);
+	struct dirent* temp;
+	if (directory == NULL) {
+		printf("Could not find the directory!\n");
+		return;
+	}
+  int i = 0;
+  while ((temp = readdir(directory)) != NULL) {
+    if (temp->d_type == 4 && strcmp(temp->d_name, ".") != 0 && strcmp(temp->d_name, "..") != 0) {
+      char* buffer = malloc(2+temp->d_reclen+strlen(filePath));
+			strcpy(buffer, filePath);
+			strcat(buffer, "/");
+			strcat(buffer, temp->d_name);
+			buffer[strlen(buffer)] = '\0';
+			compressRecursive(buffer, table);
+    }
+    else {
+      if (!(i < 2)) {
+        int count = 3+strlen(filePath)+temp->d_reclen;
+				char* buffer = malloc(count);
+				strcpy(buffer, filePath);
+				strcat(buffer, "/");
+				strcat(buffer, temp->d_name);
+				buffer[strlen(buffer)] = '\0';
+
+        int len = bufferSize(buffer) + 1;
+        if (len == 0) return;
+        char* file = malloc(len);
+        strcpy(file, findBuffer(buffer));
+
+        char *writePath = malloc (strlen(buffer) + 5);
+        strcpy(writePath,buffer);
+        strcat(writePath, ".hcz");
+
+        int fd = open(writePath, O_WRONLY|O_CREAT, 0700);
+        if (fd < 0) {
+            printf("Error could not create the file!\n");
+            return;
+        }
+        int i = 0, startIndex = 0, endIndex = 0;
+        while (i < strlen(file)-1){
+            if (spacecheck(file[i])==1){
+                startIndex = i;
+                endIndex = i;
+                while(spacecheck(file[endIndex]) != 0 && endIndex < (strlen(file))){
+                    endIndex++;
+                }
+                char *temp = malloc (((endIndex-startIndex)+2)*sizeof(char));
+                strncpy(temp, file + startIndex, endIndex - startIndex);
+                write(fd, getBit(temp,table), strlen(getBit(temp,table)));
+                i = endIndex;
+                continue;
+            }
+            if (spacecheck(file[i])==0){
+                char *temp = malloc (2*sizeof(char));
+                strncpy(temp, file + i, 1);
+                temp[1] = '\0';
+                write(fd, getBit(temp,table), strlen(getBit(temp,table)));
+                i++;
+                continue;
+            }
+        }
+        close(fd);
+      }
+    }
+    i++;
+  }
 }
 
 int main(int argc, char* argv[]) {
@@ -329,8 +393,8 @@ int main(int argc, char* argv[]) {
       if (strcmp(argv[1], "-R") == 0 && strcmp(argv[2], "-b") == 0) {
         buildRecursive(argv[3], argv[4]);
       } else if (strcmp(argv[1], "-R") == 0 && strcmp(argv[2], "-c") == 0) {
-        //recursive = 1;
-        //compress = 1;
+        hashnode **table = compressInit(argv[3], argv[4]);
+        compressRecursive(argv[3], table);
       } else if (strcmp(argv[1], "-R") == 0 && strcmp(argv[2], "-d") == 0) {
         //recursive = 1;
         //decompress = 1;

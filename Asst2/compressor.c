@@ -57,7 +57,6 @@ char* findBuffer(char* str) {
 	int fd = open(str, O_RDONLY);
 	char *buffer = malloc(++bufSize);
 	int result = read(fd, buffer, bufSize);
-	printf("%d\n", result);
 	if (result < 0) {
 		printf("Could not read the file: %s\n", str);
 		return NULL;
