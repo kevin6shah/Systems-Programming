@@ -38,7 +38,7 @@ void test(char* str, int fd) {
 
 int bufferSize(char* str) {
 	int fd = open(str, O_RDONLY);
-	if (fd <= 0) {
+	if (fd < 0) {
 		printf("Could not open the file: %s\n", str);
 		return -1;
 	}

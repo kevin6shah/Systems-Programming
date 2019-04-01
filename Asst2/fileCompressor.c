@@ -1,6 +1,9 @@
 #include "compressor.h"
 #include "data.h"
 
+// TODO: If the given file is empty or does not exist
+// TODO: Recursive decompress and decompress
+
 void huffcoder(treeNode* root, char *code, int index, char* book[], int *bookind) {
     if (root->left != NULL){
         code[index] = '0';
@@ -148,14 +151,23 @@ void build(char* filePath, char* huffmanPath) {
   int cap = tokenize(HASHTABLE, buffer, len);
   initializeTreeHeap(cap);
   makeHeap(HASHTABLE);
-  while (huffmanSize != 1) {
+
+  short oneToken = 0;
+  if (huffmanSize == 1) oneToken = 1;
+  while (huffmanSize > 1) {
     merge();
   }
 
   int bookind = 0;
   char **book = malloc(huffmanCapacity * sizeof(char*));
-  char *code = malloc(findHeight(treeHeap[0]));
-  huffcoder(treeHeap[0], code, 0, book, &bookind);
+  char *code = malloc(findHeight(treeHeap[0]) + 1);
+  if (oneToken == 0) huffcoder(treeHeap[0], code, 0, book, &bookind);
+  else {
+    char *temp = malloc(strlen("1\t") + strlen(treeHeap[0]->token) + 1);
+    strcpy(temp, "1\t");
+    strcat(temp, treeHeap[0]->token);
+    book[0] = temp;
+  }
 
   char* path = malloc(strlen(huffmanPath));
   strcpy(path, huffmanPath);
@@ -220,7 +232,6 @@ void buildRecursive(char* filePath, char* huffmanPath) {
 
 hashnode** compressInit(char* pathFile, char* pathHuffbook) {
     hashnode** table = createTable();
-
     int len = 0;
     len = bufferSize(pathHuffbook) + 1;
     if (len == 0) return;
@@ -269,8 +280,8 @@ hashnode** compressInit(char* pathFile, char* pathHuffbook) {
     return table;
   }
 
-  void compress(char* pathFile, char* pathHuffbook) {
-    hashnode **table = compressInit(pathFile, pathHuffbook);
+  void compress(char* pathFile, hashnode** table) {
+
     int len = bufferSize(pathFile) + 1;
     if (len == 0) return;
     char* file = malloc(len);
@@ -337,80 +348,121 @@ void compressRecursive(char* filePath, hashnode** table) {
 				strcat(buffer, "/");
 				strcat(buffer, temp->d_name);
 				buffer[strlen(buffer)] = '\0';
-
-        int len = bufferSize(buffer) + 1;
-        if (len == 0) return;
-        char* file = malloc(len);
-        strcpy(file, findBuffer(buffer));
-
-        char *writePath = malloc (strlen(buffer) + 5);
-        strcpy(writePath,buffer);
-        strcat(writePath, ".hcz");
-
-        int fd = open(writePath, O_WRONLY|O_CREAT, 0700);
-        if (fd < 0) {
-            printf("Error could not create the file!\n");
-            return;
-        }
-        int i = 0, startIndex = 0, endIndex = 0;
-        while (i < strlen(file)-1){
-            if (spacecheck(file[i])==1){
-                startIndex = i;
-                endIndex = i;
-                while(spacecheck(file[endIndex]) != 0 && endIndex < (strlen(file))){
-                    endIndex++;
-                }
-                char *temp = malloc (((endIndex-startIndex)+2)*sizeof(char));
-                strncpy(temp, file + startIndex, endIndex - startIndex);
-                write(fd, getBit(temp,table), strlen(getBit(temp,table)));
-                i = endIndex;
-                continue;
-            }
-            if (spacecheck(file[i])==0){
-                char *temp = malloc (2*sizeof(char));
-                strncpy(temp, file + i, 1);
-                temp[1] = '\0';
-                write(fd, getBit(temp,table), strlen(getBit(temp,table)));
-                i++;
-                continue;
-            }
-        }
-        close(fd);
+        compress(filePath, table);
       }
     }
     i++;
   }
 }
 
+int isDir(char* path) {
+  DIR *directory = opendir(path);
+  if (directory == NULL) {
+    close(directory);
+    return 0;
+  } else {
+    close(directory);
+    return 1;
+  }
+}
+
+int isHuffman(char *path) {
+  int fd = open(path, O_RDONLY);
+  if (fd < 0) return 0;
+  if (strlen(path) < 15) return 0;
+  if (strcmp(path, "HuffmanCodebook") == 0) return 1;
+  if (strcmp(path+(strlen(path)-16), "/HuffmanCodebook") == 0) return 1;
+  return 0;
+}
+
 int main(int argc, char* argv[]) {
-    if (!(argc > 3 && argc < 6)) {
+    if (!(argc > 2 && argc < 6)) {
       printf("Invalid arguments!\nUsage: ./fileCompressor <flag> <path or file> |codebook|\n");
       return 0;
     }
 
-    //short recursive = 0, build = 0, compress = 0, decompress = 0;
-    if (argc == 5) {
-      if (strcmp(argv[1], "-R") == 0 && strcmp(argv[2], "-b") == 0) {
-        buildRecursive(argv[3], argv[4]);
-      } else if (strcmp(argv[1], "-R") == 0 && strcmp(argv[2], "-c") == 0) {
-        hashnode **table = compressInit(argv[3], argv[4]);
-        compressRecursive(argv[3], table);
-      } else if (strcmp(argv[1], "-R") == 0 && strcmp(argv[2], "-d") == 0) {
-        //recursive = 1;
-        //decompress = 1;
-      } else {
+    // One one possible case would be to build. Ex: ./fileCompressor -b ./
+    if (argc == 3) {
+      //                  REGULAR BUILD
+      if (strcmp(argv[1], "-b") == 0) build(argv[2], "./");
+      else {
         printf("Invalid arguments!\nUsage: ./fileCompressor <flag> <path or file> |codebook|\n");
         return 0;
       }
     }
 
+    // Possible Cases:
+    // ./fileCompressor -c ./test.txt ./HuffmanCodebook
+    // ./fileCompressor -d ./test.txt.hcz ./HuffmanCodebook
+    // ./fileCompressor -R -b ./test.txt
     if (argc == 4) {
-      if (strcmp(argv[1], "-b") == 0) build(argv[2], argv[3]);
-      else if (strcmp(argv[1], "-c") == 0) compress(argv[2], argv[3]);
-      else if (strcmp(argv[1], "-d") == 0) /*decompress = 1*/;
-      else if (strcmp(argv[1], "-R") == 0 && strcmp(argv[2], "-b") == 0) {
-        buildRecursive(argv[3], argv[3]);
+      //                  REGULAR COMPRESSION
+      if (strcmp(argv[1], "-c") == 0) {
+        if (isDir(argv[2])) {
+          printf("Error: %s is a directory\nTerminating the program!", argv[2]);
+          return 0;
+        }
+        if (isHuffman(argv[3]) == 0) {
+          printf("Error: The Huffman file is incorrect or corrupted!\n");
+          return 0;
+        }
+        hashnode **table = compressInit(argv[2], argv[3]);
+        compress(argv[2], table);
       }
+
+      //                  REGULAR DECOMPRESSION
+      else if (strcmp(argv[1], "-d") == 0) /*decompress = 1*/;
+
+      //                  RECURSIVE BUILD
+      else if ((strcmp(argv[1], "-R") == 0 && strcmp(argv[2], "-b") == 0) ||
+      (strcmp(argv[1], "-b") == 0 && strcmp(argv[2], "-R") == 0)) {
+        if (isDir(argv[3]) == 0) {
+          printf("Not a directory: Building Codebook in regular mode\n");
+          build(argv[3], "./");
+        } else buildRecursive(argv[3], "./");
+      }
+
+      //                      ALL ELSE
+      else {
+        printf("Invalid arguments!\nUsage: ./fileCompressor <flag> <path or file> |codebook|\n");
+        return 0;
+      }
+    }
+
+    // Possible Cases:
+    // ./fileCompressor -R -c ./test.txt ./HuffmanCodebook
+    // ./fileCompressor -R -d ./test.txt.hcz ./HuffmanCodebook
+
+    // Potential Checks:
+    // -R flag and -c or -d flag interchanged
+    // If it is a directory or a file (print warning) -> continue program
+    if (argc == 5) {
+      //                  RECURSIVE COMPRESSION
+      if ((strcmp(argv[1], "-R") == 0 && strcmp(argv[2], "-c") == 0) ||
+      (strcmp(argv[1], "-c") == 0 && strcmp(argv[2], "-R") == 0)) {
+        if (isHuffman(argv[4]) == 0) {
+          printf("Error: The Huffman file is incorrect or corrupted!\n");
+          return 0;
+        }
+        if (isDir(argv[3]) == 0) {
+          printf("Not a directory: Compressing in regular mode\n");
+          printf("%s %s\n", argv[3], argv[4]);
+          hashnode **table = compressInit(argv[3], argv[4]);
+          compress(argv[3], table);
+          return 0;
+        }
+        hashnode **table = compressInit(argv[3], argv[4]);
+        compressRecursive(argv[3], table);
+      }
+
+      //                  RECURSIVE DECOMPRESSION
+      else if ((strcmp(argv[1], "-R") == 0 && strcmp(argv[2], "-d") == 0) ||
+      (strcmp(argv[1], "-d") == 0 && strcmp(argv[2], "-R") == 0)) {
+        //recursive = 1;
+        //decompress = 1;
+      }
+
+      //                          ALL ELSE
       else {
         printf("Invalid arguments!\nUsage: ./fileCompressor <flag> <path or file> |codebook|\n");
         return 0;
