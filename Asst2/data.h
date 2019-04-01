@@ -48,5 +48,6 @@ treeNode* pullTreeNode();
 void heapifyUpHuffman();
 void addTreeNode(treeNode *item);
 void merge();
+char* getBit(char* token, hashnode **table);
 
 #endif

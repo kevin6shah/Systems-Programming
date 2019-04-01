@@ -8,6 +8,11 @@
 
 #include "data.h"
 
+int spacecheck(char c){
+    if ((int) c >= 0 && (int) c < 33) return 0;
+    return 1;
+}
+
 char* findBuffer(char* str) {
     int fd = open(str, O_RDONLY);
     if (fd == -1) {
@@ -75,8 +80,49 @@ void compress(char* pathHuffbook, char* pathFile, hashnode** table){
         startIndex = ++endIndex;
         
     }
-    printHash(table);
+    //printHash(table);
     
+    //now to actually compress into new file
+    char *writePath = malloc (strlen(pathFile) + 5);
+    strcpy(writePath,pathFile);
+    strcat(writePath, ".hcz");
+    
+    int fd = open(writePath, O_WRONLY|O_CREAT, 0700);
+    if (fd < 0) {
+        printf("Error could not create the file!\n");
+        return;
+    }
+    int i = 0;
+    while (i < strlen(file)-1){
+        if (spacecheck(file[i])==1){
+            startIndex = i;
+            endIndex = i;
+            while(spacecheck(file[endIndex]) != 0 && endIndex < (strlen(file))){
+                endIndex++;
+            }
+            char *temp = malloc (((endIndex-startIndex)+2)*sizeof(char));
+            strncpy(temp, file + startIndex, endIndex - startIndex);
+            char *a = malloc(1000);
+            strcpy(a,getBit(temp,table));
+            //printf("%s\n",a);
+            write(fd, getBit(temp,table), strlen(getBit(temp,table)));
+            i = endIndex;
+            continue;
+        }
+        if (spacecheck(file[i])==0){
+            char *temp = malloc (2*sizeof(char));
+            strncpy(temp, file + i, 1);
+            temp[1] = '\0';
+            char *a = malloc (1000);
+            strcpy(a,getBit(temp,table));
+            //printf("%s\n",a);
+            write(fd, getBit(temp,table), strlen(getBit(temp,table)));
+            i++;
+            continue;
+        }
+        
+    }
+                  
     
 }
 

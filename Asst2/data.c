@@ -165,6 +165,18 @@ int hashInsert(char *token, hashnode** table){
     return 1;
 }
 
+char* getBit(char* token, hashnode **table){
+    int key = getkey(token);
+    hashnode *ptr = table[key];
+    while (ptr != NULL){
+        if (strcmp(ptr->token, token)==0){
+            return ptr->bitcode;
+        }
+        ptr = ptr->next;
+    }
+    return NULL;
+}
+
 
 
 void printHash(hashnode** table){
