@@ -70,7 +70,6 @@ void makeCodeBook(char* path, char** book) {
     return;
   }
 
-  write(fd, "\\\n", 3);
   int i;
   for (i = 0; i < huffmanCapacity; i++) {
     char *newLine = "\n";
@@ -222,6 +221,103 @@ void buildRecursive(char* filePath, char* huffmanPath) {
   makeCodeBook(path, book);
 }
 
+void compress(char* pathFile, char* pathHuffbook) {
+    hashnode** table = createTable();
+    int len = bufferSize(pathFile) + 1;
+    if (len == 0) return;
+    char* file = malloc(len);
+    strcpy(file, findBuffer(pathFile));
+    len = 0;
+    len = bufferSize(pathHuffbook) + 1;
+    if (len == 0) return;
+    char* buffer = malloc(len);
+
+    strcpy(buffer, findBuffer(pathHuffbook));
+
+    //first store the huffman codebook inside hashtable
+    int startIndex = 0;
+    int endIndex = 0;
+    int n = 0;
+    int num = strlen(buffer);
+
+    while(endIndex < num) { //insert buffer size
+        while ((int)buffer[endIndex] != 9){
+            endIndex++;
+        }
+        char *bitcode = malloc (((endIndex-startIndex)+2));
+        strncpy(bitcode, buffer + startIndex, endIndex - startIndex);
+        startIndex = ++endIndex;
+        while ((int)buffer[endIndex] != 10){
+            endIndex++;
+        }
+        char *token = malloc (((endIndex-startIndex)+2));
+        strncpy(token, buffer + startIndex, endIndex - startIndex);
+        printf("%s\n", token);
+        if (strcmp("<\\t>", token)==0){
+            token = "\t";
+        }
+        if (strcmp("<\\s>", token)==0){
+            token = " ";
+        }
+        if (strcmp("<\\n>", token)==0){
+            token = "\n";
+        }
+        if (strcmp("<\\v>", token)==0){
+            token = "\v";
+        }
+        hashnode* temp = createNode(token);
+        temp->bitcode = bitcode;
+
+        nodeInsert(temp, table);
+        n++;
+
+        startIndex = ++endIndex;
+
+    }
+    //printHash(table);
+      printf("HERE\n");
+    //now to actually compress into new file
+    char *writePath = malloc (strlen(pathFile) + 5);
+    strcpy(writePath,pathFile);
+    strcat(writePath, ".hcz");
+
+    int fd = open(writePath, O_WRONLY|O_CREAT, 0700);
+    if (fd < 0) {
+        printf("Error could not create the file!\n");
+        return;
+    }
+    int i = 0;
+    while (i < strlen(file)-1){
+        if (spacecheck(file[i])==1){
+            startIndex = i;
+            endIndex = i;
+            while(spacecheck(file[endIndex]) != 0 && endIndex < (strlen(file))){
+                endIndex++;
+            }
+            char *temp = malloc (((endIndex-startIndex)+2)*sizeof(char));
+            strncpy(temp, file + startIndex, endIndex - startIndex);
+            char *a = malloc(1000);
+            strcpy(a,getBit(temp,table));
+            //printf("%s\n",a);
+            write(fd, getBit(temp,table), strlen(getBit(temp,table)));
+            i = endIndex;
+            continue;
+        }
+        if (spacecheck(file[i])==0){
+            char *temp = malloc (2*sizeof(char));
+            strncpy(temp, file + i, 1);
+            temp[1] = '\0';
+            char *a = malloc (1000);
+            strcpy(a,getBit(temp,table));
+            //printf("%s\n",a);
+            write(fd, getBit(temp,table), strlen(getBit(temp,table)));
+            i++;
+            continue;
+        }
+
+    }
+}
+
 int main(int argc, char* argv[]) {
     if (!(argc > 3 && argc < 6)) {
       printf("Invalid arguments!\nUsage: ./fileCompressor <flag> <path or file> |codebook|\n");
@@ -246,7 +342,7 @@ int main(int argc, char* argv[]) {
 
     if (argc == 4) {
       if (strcmp(argv[1], "-b") == 0) build(argv[2], argv[3]);
-      else if (strcmp(argv[1], "-c") == 0) /*compress = 1*/;
+      else if (strcmp(argv[1], "-c") == 0) compress(argv[2], argv[3]);
       else if (strcmp(argv[1], "-d") == 0) /*decompress = 1*/;
       else if (strcmp(argv[1], "-R") == 0 && strcmp(argv[2], "-b") == 0) {
         buildRecursive(argv[3], argv[3]);

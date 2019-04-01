@@ -1,9 +1,3 @@
-\
-0	and
-100	cat
-101	button
-1100	a
-1101	dog
-111	ball
-1111	<\s>
+Hello my name is Kevin shah and my name hello vs. Hello and this is
 
+Hello

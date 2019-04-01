@@ -43,7 +43,7 @@ int bufferSize(char* str) {
 		return -1;
 	}
 	char temp;	// Try taking this temp out
-	int counter;
+	int counter = 0;
 	while (read(fd, &temp, 1) != 0) {
 		counter++;
 	}
@@ -57,6 +57,7 @@ char* findBuffer(char* str) {
 	int fd = open(str, O_RDONLY);
 	char *buffer = malloc(++bufSize);
 	int result = read(fd, buffer, bufSize);
+	printf("%d\n", result);
 	if (result < 0) {
 		printf("Could not read the file: %s\n", str);
 		return NULL;
