@@ -128,7 +128,9 @@ int getkey(char *token){
 }
 
 int hashInsert(char *token, hashnode** table){
-    int key = getkey(token);
+		if (token == NULL) return -1;
+		int key = getkey(token);
+
     if (table[key] == NULL){
         table[key] = createNode(token);
         return 1;

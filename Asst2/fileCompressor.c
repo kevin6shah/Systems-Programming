@@ -7,20 +7,37 @@ void huffcoder(treeNode* root, char *code, int index, char* book[], int *bookind
         huffcoder(root->left, code, index + 1, book,bookind);
     }
 
-    if (root->right != NULL){
+    if (root->right != NULL) {
         code[index] = '1';
         huffcoder(root->right, code, index + 1, book, bookind);
     }
 
-    if (root->left == NULL && root->right == NULL){
-        int n = strlen(root->token) + 1;
+    if (root->left == NULL && root->right == NULL) {
+        char *token = NULL;
+        if (strcmp(root->token, "\t") == 0) {
+          token = malloc(5);
+          strcpy(token, "<\\t>");
+        } else if (strcmp(root->token, " ") == 0) {
+          token = malloc(5);
+          strcpy(token, "<\\s>");
+        } else if (strcmp(root->token, "\v") == 0) {
+          token = malloc(5);
+          strcpy(token, "<\\v>");
+        } else if (strcmp(root->token, "\n") == 0) {
+          token = malloc(5);
+          strcpy(token, "<\\n>");
+        }
+        int n;
+        if (token == NULL) n = strlen(root->token) + 1;
+        else n = 5;
         book[*bookind] = malloc (n + index + 1);
         strncpy(book[*bookind], code, index);
         char* tab = malloc (2);
         tab[0] = '\t';
         tab[1] = '\0';
         strcat(book[*bookind], tab);
-        strcat(book[*bookind], root->token);
+        if (token == NULL) strcat(book[*bookind], root->token);
+        else strcat(book[*bookind], token);
         ++(*bookind);
     }
 }
@@ -52,7 +69,7 @@ void makeCodeBook(char* path, char** book) {
     printf("Error could not create the file!\n");
     return;
   }
-  
+
   write(fd, "\\\n", 3);
   int i;
   for (i = 0; i < huffmanCapacity; i++) {
@@ -128,9 +145,67 @@ void build(char* filePath, char* huffmanPath) {
   if (len == 0) return;
   char *buffer = malloc(len);
   strcpy(buffer, findBuffer(filePath));
+
   hashnode **HASHTABLE = createTable();
   int cap = tokenize(HASHTABLE, buffer, len);
+  initializeTreeHeap(cap);
+  makeHeap(HASHTABLE);
+  while (huffmanSize != 1) {
+    merge();
+  }
 
+  int bookind = 0;
+  char **book = malloc(huffmanCapacity * sizeof(char*));
+  char *code = malloc(findHeight(treeHeap[0]));
+  huffcoder(treeHeap[0], code, 0, book, &bookind);
+
+  char* path = malloc(strlen(huffmanPath));
+  strcpy(path, huffmanPath);
+  makeCodeBook(path, book);
+}
+
+void buildRecursiveHelper(char* filePath, hashnode **HASHTABLE, int *cap) {
+  DIR *directory = opendir(filePath);
+	struct dirent* temp;
+	if (directory == NULL) {
+		printf("Could not find the directory!\n");
+		return;
+	}
+  int i = 0;
+  while ((temp = readdir(directory)) != NULL) {
+    if (temp->d_type == 4 && strcmp(temp->d_name, ".") != 0 && strcmp(temp->d_name, "..") != 0) {
+      char* buffer = malloc(2+temp->d_reclen+strlen(filePath));
+			strcpy(buffer, filePath);
+			strcat(buffer, "/");
+			strcat(buffer, temp->d_name);
+			buffer[strlen(buffer)] = '\0';
+			buildRecursiveHelper(buffer, HASHTABLE, cap);
+    }
+    else {
+      if (!(i < 2)) {
+        if (!(temp->d_name[0] == '.')) {
+        int count = 3+strlen(filePath)+temp->d_reclen;
+				char* buffer = malloc(count);
+				strcpy(buffer, filePath);
+				strcat(buffer, "/");
+				strcat(buffer, temp->d_name);
+				buffer[strlen(buffer)] = '\0';
+        int len = bufferSize(buffer) + 1;
+        if (len == 0) return;
+        char *buffer2 = malloc(len);
+        strcpy(buffer2, findBuffer(buffer));
+        *cap = *cap + tokenize(HASHTABLE, buffer2, len);
+        }
+      }
+    }
+    i++;
+  }
+}
+
+void buildRecursive(char* filePath, char* huffmanPath) {
+  hashnode **HASHTABLE = createTable();
+  int cap;
+  buildRecursiveHelper(filePath, HASHTABLE, &cap);
   initializeTreeHeap(cap);
   makeHeap(HASHTABLE);
   while (huffmanSize != 1) {
@@ -156,8 +231,7 @@ int main(int argc, char* argv[]) {
     //short recursive = 0, build = 0, compress = 0, decompress = 0;
     if (argc == 5) {
       if (strcmp(argv[1], "-R") == 0 && strcmp(argv[2], "-b") == 0) {
-        //recursive = 1;
-        //build = 1;
+        buildRecursive(argv[3], argv[4]);
       } else if (strcmp(argv[1], "-R") == 0 && strcmp(argv[2], "-c") == 0) {
         //recursive = 1;
         //compress = 1;
@@ -174,6 +248,9 @@ int main(int argc, char* argv[]) {
       if (strcmp(argv[1], "-b") == 0) build(argv[2], argv[3]);
       else if (strcmp(argv[1], "-c") == 0) /*compress = 1*/;
       else if (strcmp(argv[1], "-d") == 0) /*decompress = 1*/;
+      else if (strcmp(argv[1], "-R") == 0 && strcmp(argv[2], "-b") == 0) {
+        buildRecursive(argv[3], argv[3]);
+      }
       else {
         printf("Invalid arguments!\nUsage: ./fileCompressor <flag> <path or file> |codebook|\n");
         return 0;
