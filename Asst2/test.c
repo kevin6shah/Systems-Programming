@@ -72,7 +72,6 @@ void decompress(char* pathFile, char* pathHuffbook){
         }
         char *token = malloc (((endIndex-startIndex)+2));
         strncpy(token, buffer + startIndex, endIndex - startIndex);
-        printf("%s\n", token);
         if (strcmp("<\\t>", token)==0){
             token = "\t";
         }
