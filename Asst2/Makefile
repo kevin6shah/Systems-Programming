@@ -8,5 +8,5 @@ clean:
 	rm -rf compressor.o fileCompressor data.o test
 
 t:
-	gcc -c data.c
-	gcc test.c data.o -o test
+	gcc -c data.c compressor.c
+	gcc test.c data.o compressor.o -o test
