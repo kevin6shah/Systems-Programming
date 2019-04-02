@@ -1,9 +1,6 @@
 #include "compressor.h"
 #include "data.h"
 
-// TODO: If the given file is empty or does not exist
-// TODO: BUILD/COMPRESS/DECOMPRESS deep recursion
-
 void huffcoder(treeNode* root, char *code, int index, char* book[], int *bookind) {
     if (root->left != NULL){
         code[index] = '0';
@@ -209,9 +206,11 @@ void buildRecursiveHelper(char* filePath, hashnode **HASHTABLE, int *cap) {
 				buffer[strlen(buffer)] = '\0';
         int len = bufferSize(buffer) + 1;
         if (len == 0) return;
-        char *buffer2 = malloc(len);
-        strcpy(buffer2, findBuffer(buffer));
-        *cap = *cap + tokenize(HASHTABLE, buffer2, len);
+        if (len != 1) {
+          char *buffer2 = malloc(len);
+          strcpy(buffer2, findBuffer(buffer));
+          *cap = *cap + tokenize(HASHTABLE, buffer2, len);
+        }
       }
     }
     i++;
@@ -242,7 +241,7 @@ hashnode** compressInit(char* pathFile, char* pathHuffbook) {
     hashnode** table = createTable();
     int len = 0;
     len = bufferSize(pathHuffbook) + 1;
-    if (len == 0) return;
+    if (len == 0 || len == 1) return NULL;
     char* buffer = malloc(len);
 
     strcpy(buffer, findBuffer(pathHuffbook));
@@ -291,6 +290,14 @@ hashnode** compressInit(char* pathFile, char* pathHuffbook) {
 void compress(char* pathFile, hashnode** table) {
     int len = bufferSize(pathFile) + 1;
     if (len == 0) return;
+    if (len == 1) {
+      char *writePath = malloc (strlen(pathFile) + 5);
+      strcpy(writePath,pathFile);
+      strcat(writePath, ".hcz");
+      int fd = open(writePath, O_WRONLY|O_CREAT, 0700);
+      printf("Warning: Tried compressing an empty file!\nEmpty compressed file created!\n");
+      return;
+    }
     char* file = malloc(len);
     strcpy(file, findBuffer(pathFile));
 
@@ -422,7 +429,7 @@ void addPath(char* bitcode, char* token, treeNode *root){
 treeNode* decompressInit(char* pathFile, char* pathHuffbook){
     int len = 0;
     len = bufferSize(pathHuffbook) + 1;
-    if (len == 0) return NULL;
+    if (len == 0 || len == 1) return NULL;
     char* buffer = malloc(len); //buffer holds huffbook
 
     strcpy(buffer, findBuffer(pathHuffbook));
@@ -468,6 +475,14 @@ treeNode* decompressInit(char* pathFile, char* pathHuffbook){
 void decompress(char* pathFile, treeNode *root) {
     int len = bufferSize(pathFile) + 1;
     if (len == 0) return;
+    if (len == 1) {
+      char *writePath = malloc (strlen(pathFile) -4);
+      strncpy(writePath, pathFile, strlen(pathFile)-4);
+      writePath[strlen(pathFile)-4] = '\0';
+      int fd = open(writePath, O_WRONLY|O_CREAT, 0700);
+      printf("Warning: Tried compressing an empty file!\nEmpty compressed file created!\n");
+      return;
+    }
     char* file = malloc(len);//file holds the compressed bits
     strcpy(file, findBuffer(pathFile));
     char *writePath = malloc (strlen(pathFile) -4);
@@ -517,7 +532,6 @@ void decompressRecursive(char* filePath, treeNode* root) {
     }
     else {
       if ((!(i < 2)) && strstr(temp->d_name, ".hcz") != NULL && temp->d_name[strlen(temp->d_name)-1] == 'z') {
-        printf("%s %d\n", temp->d_name, temp->d_reclen);
         int count = 3+strlen(filePath)+temp->d_reclen;
 				char* buffer = malloc(count);
 				strcpy(buffer, filePath);
@@ -577,6 +591,14 @@ int main(int argc, char* argv[]) {
           return 0;
         }
         hashnode **table = compressInit(argv[2], argv[3]);
+        if (table == NULL && bufferSize(argv[2]) == 0) {
+          char *writePath = malloc (strlen(argv[2]) + 5);
+          strcpy(writePath,argv[2]);
+          strcat(writePath, ".hcz");
+          int fd = open(writePath, O_WRONLY|O_CREAT, 0700);
+          printf("Warning: Tried compressing an empty file!\nEmpty compressed file created!\n");
+          return 0;
+        }
         compress(argv[2], table);
       }
 
@@ -592,6 +614,14 @@ int main(int argc, char* argv[]) {
           return 0;
         }
         treeNode* tree = decompressInit(argv[2], argv[3]);
+        if (tree == NULL && bufferSize(argv[2]) == 0) {
+          char *writePath = malloc (strlen(argv[2]) -4);
+          strncpy(writePath, argv[2], strlen(argv[2])-4);
+          writePath[strlen(argv[2])-4] = '\0';
+          int fd = open(writePath, O_WRONLY|O_CREAT, 0700);
+          printf("Warning: Tried decompressing an empty file!\nEmpty decompressed file created!\n");
+          return 0;
+        }
         decompress(argv[2], tree);
       }
 
@@ -633,6 +663,14 @@ int main(int argc, char* argv[]) {
           return 0;
         }
         hashnode **table = compressInit(argv[3], argv[4]);
+        if (table == NULL && bufferSize(argv[3]) == 0) {
+          char *writePath = malloc (strlen(argv[3]) + 5);
+          strcpy(writePath,argv[3]);
+          strcat(writePath, ".hcz");
+          int fd = open(writePath, O_WRONLY|O_CREAT, 0700);
+          printf("Warning: Tried compressing an empty file!\nEmpty compressed file created!\n");
+          return 0;
+        }
         compressRecursive(argv[3], table);
       }
 
@@ -650,6 +688,11 @@ int main(int argc, char* argv[]) {
           return 0;
         }
         treeNode* tree = decompressInit(argv[3], argv[4]);
+        if (tree == NULL) {
+          int fd = open("test.txt", O_WRONLY|O_CREAT, 0700);
+          printf("Warning: Tried decompressing an empty file!\nEmpty decompressed file created!\n");
+          return 0;
+        }
         decompressRecursive(argv[3], tree);
       }
 
