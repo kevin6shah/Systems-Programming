@@ -2,7 +2,7 @@
 #include "data.h"
 
 // TODO: If the given file is empty or does not exist
-// TODO: Recursive decompress and decompress
+// TODO: BUILD/COMPRESS/DECOMPRESS deep recursion
 
 void huffcoder(treeNode* root, char *code, int index, char* book[], int *bookind) {
     if (root->left != NULL){
@@ -144,6 +144,14 @@ void makeHeap(hashnode **table){
 void build(char* filePath, char* huffmanPath) {
   int len = bufferSize(filePath) + 1;
   if (len == 0) return;
+  if (len == 1) { // Edge Case: In case the file given is NULL
+    char *path = malloc(strlen(huffmanPath)+16);
+    strcpy(path, huffmanPath);
+    strcat(path, "HuffmanCodebook");
+    int fd = open(path, O_RDONLY | O_CREAT, 0700);
+    printf("Warning: Given file '%s' was empty.\nEmpty Codebook created\n", filePath);
+    return;
+  }
   char *buffer = malloc(len);
   strcpy(buffer, findBuffer(filePath));
 
@@ -281,7 +289,6 @@ hashnode** compressInit(char* pathFile, char* pathHuffbook) {
   }
 
 void compress(char* pathFile, hashnode** table) {
-
     int len = bufferSize(pathFile) + 1;
     if (len == 0) return;
     char* file = malloc(len);
@@ -409,7 +416,6 @@ void addPath(char* bitcode, char* token, treeNode *root){
     int len = strlen(token) + 1;
     ptr->token = malloc(len);
     strcpy(ptr->token,token);
-
 }
 
 
@@ -475,7 +481,7 @@ void decompress(char* pathFile, treeNode *root) {
     }
 
     int i = 0;
-    while (i < strlen(file)-1){
+    while (i < strlen(file)){
         treeNode *ptr = root;
         while (ptr->left != NULL || ptr->right != NULL){
             if (file[i] == '0'){
@@ -525,18 +531,31 @@ void decompressRecursive(char* filePath, treeNode* root) {
   }
 }
 
+void printStatements() {
+  printf("Invalid arguments!\nUsage: ./fileCompressor <flag> <path or file> |codebook|\n");
+  printf("flags:\n-R\tPerform a command (build/compress/decompress) recursively\n");
+  printf("\t\tusage: ./fileCompressor -R -b ./directoryname\n");
+  printf("-b\tBuilds a huffman codebook for a file or files\n");
+  printf("\t\tusage: ./fileCompressor -b ./filename.txt\n");
+  printf("-c\tCompresses a file or files given the codebook\n");
+  printf("\t\tusage: ./fileCompressor -R -c ./ ./HuffmanCodebook\n");
+  printf("-d\tDecompresses a file or files given the codebook\n");
+  printf("\t\tusage: ./fileCompressor -d ./filename.txt.hcz ./HuffmanCodebook\n");
+}
+
 int main(int argc, char* argv[]) {
     if (!(argc > 2 && argc < 6)) {
-      printf("Invalid arguments!\nUsage: ./fileCompressor <flag> <path or file> |codebook|\n");
+      printStatements();
       return 0;
     }
 
     // One one possible case would be to build. Ex: ./fileCompressor -b ./
     if (argc == 3) {
       //                  REGULAR BUILD
-      if (strcmp(argv[1], "-b") == 0) build(argv[2], "./");
-      else {
-        printf("Invalid arguments!\nUsage: ./fileCompressor <flag> <path or file> |codebook|\n");
+      if (strcmp(argv[1], "-b") == 0) {
+        build(argv[2], "./");
+      } else {
+        printStatements();
         return 0;
       }
     }
@@ -549,7 +568,8 @@ int main(int argc, char* argv[]) {
       //                  REGULAR COMPRESSION
       if (strcmp(argv[1], "-c") == 0) {
         if (isDir(argv[2])) {
-          printf("Error: %s is a directory\nTerminating the program!", argv[2]);
+          printf("Error: %s is a directory\nTerminating the program!\n", argv[2]);
+          printf("Usage: Try running the same command with the -R flag\n");
           return 0;
         }
         if (isHuffman(argv[3]) == 0) {
@@ -562,6 +582,15 @@ int main(int argc, char* argv[]) {
 
       //                  REGULAR DECOMPRESSION
       else if (strcmp(argv[1], "-d") == 0) {
+        if (isDir(argv[2])) {
+          printf("Error: %s is a directory\nTerminating the program!\n", argv[2]);
+          printf("Usage: Try running the same command with the -R flag\n");
+          return 0;
+        }
+        if (isHuffman(argv[3]) == 0) {
+          printf("Error: The Huffman file is incorrect or corrupted!\n");
+          return 0;
+        }
         treeNode* tree = decompressInit(argv[2], argv[3]);
         decompress(argv[2], tree);
       }
@@ -577,7 +606,7 @@ int main(int argc, char* argv[]) {
 
       //                      ALL ELSE
       else {
-        printf("Invalid arguments!\nUsage: ./fileCompressor <flag> <path or file> |codebook|\n");
+        printStatements();
         return 0;
       }
     }
@@ -610,13 +639,23 @@ int main(int argc, char* argv[]) {
       //                  RECURSIVE DECOMPRESSION
       else if ((strcmp(argv[1], "-R") == 0 && strcmp(argv[2], "-d") == 0) ||
       (strcmp(argv[1], "-d") == 0 && strcmp(argv[2], "-R") == 0)) {
+        if (isHuffman(argv[4]) == 0) {
+          printf("Error: The Huffman file is incorrect or corrupted!\n");
+          return 0;
+        }
+        if (isDir(argv[3]) == 0) {
+          printf("Not a directory: Decompressing in regular mode\n");
+          treeNode* tree = decompressInit(argv[3], argv[4]);
+          decompress(argv[3], tree);
+          return 0;
+        }
         treeNode* tree = decompressInit(argv[3], argv[4]);
         decompressRecursive(argv[3], tree);
       }
 
       //                          ALL ELSE
       else {
-        printf("Invalid arguments!\nUsage: ./fileCompressor <flag> <path or file> |codebook|\n");
+        printStatements();
         return 0;
       }
     }
