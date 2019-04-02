@@ -42,7 +42,7 @@ int bufferSize(char* str) {
 		printf("Could not open the file: %s\n", str);
 		return -1;
 	}
-	char temp;	// Try taking this temp out
+	char temp;
 	int counter = 0;
 	while (read(fd, &temp, 1) != 0) {
 		counter++;

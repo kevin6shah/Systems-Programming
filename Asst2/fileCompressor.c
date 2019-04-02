@@ -280,7 +280,7 @@ hashnode** compressInit(char* pathFile, char* pathHuffbook) {
     return table;
   }
 
-  void compress(char* pathFile, hashnode** table) {
+void compress(char* pathFile, hashnode** table) {
 
     int len = bufferSize(pathFile) + 1;
     if (len == 0) return;
@@ -348,7 +348,7 @@ void compressRecursive(char* filePath, hashnode** table) {
 				strcat(buffer, "/");
 				strcat(buffer, temp->d_name);
 				buffer[strlen(buffer)] = '\0';
-        compress(filePath, table);
+        compress(buffer, table);
       }
     }
     i++;
@@ -373,6 +373,156 @@ int isHuffman(char *path) {
   if (strcmp(path, "HuffmanCodebook") == 0) return 1;
   if (strcmp(path+(strlen(path)-16), "/HuffmanCodebook") == 0) return 1;
   return 0;
+}
+
+treeNode* maketreeNode(char *token){
+    treeNode *temp = malloc (sizeof(treeNode));
+    int len = strlen(token) + 1;
+    temp->token = malloc(len);
+    strcpy(temp->token,token);
+    temp->left = NULL;
+    temp->right = NULL;
+}
+
+void addPath(char* bitcode, char* token, treeNode *root){
+    int i = 0;
+    treeNode *ptr = root;
+    while (i < strlen(bitcode)){
+        int dir;
+        if (bitcode[i] == '0'){
+            if (ptr->left == NULL){
+                treeNode *temp = maketreeNode("NULL");
+                ptr->left = temp;
+            }
+            ptr = ptr->left;
+        } else {
+            if (ptr->right == NULL){
+                treeNode *temp = maketreeNode("NULL");
+                ptr->right = temp;
+            }
+            ptr = ptr->right;
+        }
+        i++;
+
+    }
+    free(ptr->token);
+    int len = strlen(token) + 1;
+    ptr->token = malloc(len);
+    strcpy(ptr->token,token);
+
+}
+
+
+treeNode* decompressInit(char* pathFile, char* pathHuffbook){
+    int len = 0;
+    len = bufferSize(pathHuffbook) + 1;
+    if (len == 0) return NULL;
+    char* buffer = malloc(len); //buffer holds huffbook
+
+    strcpy(buffer, findBuffer(pathHuffbook));
+    treeNode *root = malloc(sizeof(treeNode));
+    root->token = "root";
+
+    //build a qausi tree out of huffman
+    int startIndex = 0;
+    int endIndex = 0;
+    int n = 0;
+    int num = strlen(buffer);
+
+    while(endIndex < num) { //insert buffer size
+        while ((int)buffer[endIndex] != 9){
+            endIndex++;
+        }
+        char *bitcode = malloc (((endIndex-startIndex)+2));
+        strncpy(bitcode, buffer + startIndex, endIndex - startIndex);
+        startIndex = ++endIndex;
+        while ((int)buffer[endIndex] != 10){
+            endIndex++;
+        }
+        char *token = malloc (((endIndex-startIndex)+2));
+        strncpy(token, buffer + startIndex, endIndex - startIndex);
+        if (strcmp("<\\t>", token)==0){
+            token = "\t";
+        }
+        if (strcmp("<\\s>", token)==0){
+            token = " ";
+        }
+        if (strcmp("<\\n>", token)==0){
+            token = "\n";
+        }
+        if (strcmp("<\\v>", token)==0){
+            token = "\v";
+        }
+        addPath(bitcode, token, root);
+        startIndex = ++endIndex;
+    }
+    return root;
+}
+
+void decompress(char* pathFile, treeNode *root) {
+    int len = bufferSize(pathFile) + 1;
+    if (len == 0) return;
+    char* file = malloc(len);//file holds the compressed bits
+    strcpy(file, findBuffer(pathFile));
+    char *writePath = malloc (strlen(pathFile) -4);
+    strncpy(writePath, pathFile, strlen(pathFile)-4);
+    writePath[strlen(pathFile)-4] = '\0';
+
+    int fd = open(writePath, O_WRONLY|O_CREAT, 0700);
+    if (fd < 0) {
+        printf("Error could not create the file!\n");
+        return;
+    }
+
+    int i = 0;
+    while (i < strlen(file)-1){
+        treeNode *ptr = root;
+        while (ptr->left != NULL || ptr->right != NULL){
+            if (file[i] == '0'){
+                ptr = ptr->left;
+                i++;
+            } else {
+                ptr = ptr->right;
+                i++;
+            }
+        }
+        write(fd, ptr->token, strlen(ptr->token));
+        ptr = root;
+    }
+    close(fd);
+}
+
+void decompressRecursive(char* filePath, treeNode* root) {
+  DIR *directory = opendir(filePath);
+	struct dirent* temp;
+	if (directory == NULL) {
+		printf("Could not find the directory!\n");
+		return;
+	}
+  int i = 0;
+  while ((temp = readdir(directory)) != NULL) {
+    if (temp->d_type == 4 && strcmp(temp->d_name, ".") != 0 && strcmp(temp->d_name, "..") != 0) {
+      char* buffer = malloc(2+temp->d_reclen+strlen(filePath));
+			strcpy(buffer, filePath);
+			strcat(buffer, "/");
+			strcat(buffer, temp->d_name);
+			buffer[strlen(buffer)] = '\0';
+			decompressRecursive(buffer, root);
+    }
+    else {
+      if ((!(i < 2)) && strstr(temp->d_name, ".hcz") != NULL && temp->d_name[strlen(temp->d_name)-1] == 'z') {
+        printf("%s %d\n", temp->d_name, temp->d_reclen);
+        int count = 3+strlen(filePath)+temp->d_reclen;
+				char* buffer = malloc(count);
+				strcpy(buffer, filePath);
+				strcat(buffer, "/");
+				strcat(buffer, temp->d_name);
+				buffer[strlen(buffer)] = '\0';
+        decompress(buffer, root);
+      }
+    }
+    i++;
+  }
 }
 
 int main(int argc, char* argv[]) {
@@ -411,7 +561,10 @@ int main(int argc, char* argv[]) {
       }
 
       //                  REGULAR DECOMPRESSION
-      else if (strcmp(argv[1], "-d") == 0) /*decompress = 1*/;
+      else if (strcmp(argv[1], "-d") == 0) {
+        treeNode* tree = decompressInit(argv[2], argv[3]);
+        decompress(argv[2], tree);
+      }
 
       //                  RECURSIVE BUILD
       else if ((strcmp(argv[1], "-R") == 0 && strcmp(argv[2], "-b") == 0) ||
@@ -446,7 +599,6 @@ int main(int argc, char* argv[]) {
         }
         if (isDir(argv[3]) == 0) {
           printf("Not a directory: Compressing in regular mode\n");
-          printf("%s %s\n", argv[3], argv[4]);
           hashnode **table = compressInit(argv[3], argv[4]);
           compress(argv[3], table);
           return 0;
@@ -458,8 +610,8 @@ int main(int argc, char* argv[]) {
       //                  RECURSIVE DECOMPRESSION
       else if ((strcmp(argv[1], "-R") == 0 && strcmp(argv[2], "-d") == 0) ||
       (strcmp(argv[1], "-d") == 0 && strcmp(argv[2], "-R") == 0)) {
-        //recursive = 1;
-        //decompress = 1;
+        treeNode* tree = decompressInit(argv[3], argv[4]);
+        decompressRecursive(argv[3], tree);
       }
 
       //                          ALL ELSE

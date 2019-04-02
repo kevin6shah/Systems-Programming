@@ -16,3 +16,18 @@ t:
 	cat HuffmanCodebook
 	cat test.txt
 	cat test.tx
+
+H:
+	mkdir hello
+	cp test.txt hello
+	gcc -c compressor.c data.c
+	gcc fileCompressor.c compressor.o data.o -o fileCompressor
+	./fileCompressor -b -R hello
+	./fileCompressor -c -R hello ./HuffmanCodebook
+	cat hello/test.txt
+	rm hello/test.txt
+	./fileCompressor -d -R hello ./HuffmanCodebook
+	hello/test.txt > ../modified.txt
+	cat hello/test.txt
+	rm -rf hello
+	make clean
