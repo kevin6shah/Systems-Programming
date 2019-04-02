@@ -1,12 +1,11 @@
-Hello my name is Kevin shah
+This is how we tested all the functions. To test build, we used test.txt files of variable components to generate the HuffmanCodebook. We tested: only one token, many tokens, and no tokens in combination to make sure the build function was working properly. We also made use of the many HuffmanTree Generators online to perfect our code. We compared the HuffmanCodebook along with the a printed version of the Huffman Tree  to the online trees to make sure the algorithm of the code was functioning correctly. 
 
-This is a test
+To test compress was very simple. We first built the codebook, which at this point was functioning close to 100%. Then we again called it on files that had one token, many tokens, and no tokens. Using the HuffmanCodebook, we traced the chain of "bits" written into the file to make sure it was actually compressing correctly. We compared the original text file to the compressed version using the HuffmanCodebook. 
 
-Just
+To test decompress was very simple. We simply built and compressed. We then renamed the original file as something else. And then we ran decompress. This decompressed file was then compared with the original file using a compare function we built for testing, but did not include in the actually implementation. This compare function went from byte to byte or in better terms from char to char and compared each to each other, before moving on. This made sure the decompress function was working to its full capabilities. We also checked to compress compressed files, and then also decompress decompressed files. 
 
+To test the recursive calls on build, compress, decompress, we went through a similar approach as the one above. However, we created directories with many subdirectories, with many more directories. Inside each of these directories we had normal files (within the ascii restraints) and ran build, compress, and decompress. Then we used testing methods described above to verify if it ran correctly or not. The amount of directories and files inside were held variable and each time, our program came out on top.
 
+We also tested to build, compress, and decompress as symbolic file/link. 
 
-
-To	see if everything works
-
-...	... . . . YayyYYYay.
+We also had many error checking mechanisms which include but are not limited to: NULL files, incorrect parameters, incorrect format of parameters, empty files. By which we induced the error and checked for the various error print statements we have in effect. These were also successful.
