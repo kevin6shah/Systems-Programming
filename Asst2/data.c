@@ -211,3 +211,28 @@ void printHash(hashnode** table){
     }
     ////printf("tab?: %d", table[9]->freq);
 }
+void freeList(hashnode *ptr){
+    
+    if (ptr->next != NULL){
+        freeList(ptr->next);
+    }
+    if (ptr->token != NULL){
+        free(ptr->token);
+    }
+    if (ptr->bitcode != NULL){
+        free(ptr->bitcode)
+    }
+    free(ptr);
+}
+
+void freeTable(hashnode **table){
+    int i = 0;
+    while (i < TABLESIZE){
+        if (table[i] != NULL){
+            hashnode *ptr = table[i];
+            freeList(ptr);
+        }
+        i++;
+    }
+
+}
