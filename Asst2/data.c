@@ -128,8 +128,8 @@ void nodeInsert(hashnode* node, hashnode **table){
     }
     prev->next = node;
     return;
-    
-    
+
+
 }
 
 int getkey(char *token){
@@ -212,7 +212,7 @@ void printHash(hashnode** table){
     ////printf("tab?: %d", table[9]->freq);
 }
 void freeList(hashnode *ptr){
-    
+
     if (ptr->next != NULL){
         freeList(ptr->next);
     }
@@ -220,7 +220,7 @@ void freeList(hashnode *ptr){
         free(ptr->token);
     }
     if (ptr->bitcode != NULL){
-        free(ptr->bitcode)
+        free(ptr->bitcode);
     }
     free(ptr);
 }

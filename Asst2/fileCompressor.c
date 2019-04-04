@@ -114,14 +114,6 @@ int main(int argc, char* argv[]) {
           return 0;
         }
         hashnode **table = compressInit(argv[3], argv[4]);
-        if (table == NULL && bufferSize(argv[3]) == 0) {
-          char *writePath = malloc (strlen(argv[3]) + 5);
-          strcpy(writePath,argv[3]);
-          strcat(writePath, ".hcz");
-          int fd = open(writePath, O_WRONLY|O_CREAT, 0700);
-          fprintf(stderr, "Warning: Tried compressing an empty file!\nEmpty compressed file created!\n");
-          return 0;
-        }
         compressRecursive(argv[3], table);
       }
 

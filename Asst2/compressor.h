@@ -10,7 +10,6 @@
 #include <fcntl.h>
 #include "data.h"
 
-void test(char* str, int fd);
 char* findBuffer(char* str);
 int bufferSize(char* str);
 void huffcoder(treeNode* root, char *code, int index, char* book[], int *bookind);

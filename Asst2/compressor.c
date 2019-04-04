@@ -1,40 +1,6 @@
 #include "compressor.h"
 #include "data.h"
-
-void test(char* str, int fd) {
-	DIR *directory = opendir(str);
-	struct dirent* temp;
-	if (directory == NULL) {
-		fprintf(stderr, "Could not find the directory!\n");
-		return;
-	}
-	int i = 0;
-	while ((temp = readdir(directory)) != NULL) {
-		if (temp->d_type == 4 && strcmp(temp->d_name, ".") != 0 && strcmp(temp->d_name, "..") != 0) {
-			char* buffer = malloc(2+temp->d_reclen+strlen(str));
-			strcpy(buffer, str);
-			strcat(buffer, "/");
-			strcat(buffer, temp->d_name);
-			buffer[strlen(buffer)] = '\0';
-			test(buffer, fd);
-			free(buffer);
-		}
-		else {
-			if (!(i < 2)) {
-				int count = 3+strlen(str)+temp->d_reclen;
-				char* buffer = malloc(count);
-				strcpy(buffer, str);
-				strcat(buffer, "/");
-				strcat(buffer, temp->d_name);
-				buffer[strlen(buffer)] = '\0';
-				buffer[strlen(buffer)] = '\n';
-				write(fd, buffer, count);
-			}
-		}
-		i++;
-	}
-	closedir(directory);
-}
+#include <unistd.h>
 
 int bufferSize(char* str) {
 	int fd = open(str, O_RDONLY);
@@ -241,7 +207,7 @@ void build(char* filePath, char* huffmanPath) {
     book[0] = temp;
   }
 
-  char* path = malloc(strlen(huffmanPath));
+  char* path = malloc(strlen(huffmanPath)+1);
   strcpy(path, huffmanPath);
   makeCodeBook(path, book);
 }
@@ -299,7 +265,7 @@ void buildRecursive(char* filePath, char* huffmanPath) {
   char *code = malloc(findHeight(treeHeap[0]));
   huffcoder(treeHeap[0], code, 0, book, &bookind);
 
-  char* path = malloc(strlen(huffmanPath));
+  char* path = malloc(strlen(huffmanPath)+1);
   strcpy(path, huffmanPath);
   makeCodeBook(path, book);
 }
@@ -361,6 +327,7 @@ void compress(char* pathFile, hashnode** table) {
       char *writePath = malloc (strlen(pathFile) + 5);
       strcpy(writePath,pathFile);
       strcat(writePath, ".hcz");
+			printf("Path: %s\n", writePath);
       int fd = open(writePath, O_WRONLY|O_CREAT, 0700);
       fprintf(stderr, "Warning: Tried compressing an empty file!\nEmpty compressed file created!\n");
       return;
@@ -379,7 +346,7 @@ void compress(char* pathFile, hashnode** table) {
         return;
     }
     int i = 0, startIndex = 0, endIndex = 0;
-    while (i < strlen(file)-1){
+    while (i < strlen(file)) {
         if (spacecheck(file[i])==1){
             startIndex = i;
             endIndex = i;
@@ -439,10 +406,8 @@ void compressRecursive(char* filePath, hashnode** table) {
 int isDir(char* path) {
   DIR *directory = opendir(path);
   if (directory == NULL) {
-    close(directory);
     return 0;
   } else {
-    close(directory);
     return 1;
   }
 }
@@ -505,7 +470,6 @@ treeNode* decompressInit(char* pathFile, char* pathHuffbook){
     //build a qausi tree out of huffman
     int startIndex = 0;
     int endIndex = 0;
-    int n = 0;
     int num = strlen(buffer);
 
     while(endIndex < num) { //insert buffer size
@@ -542,16 +506,17 @@ void decompress(char* pathFile, treeNode *root) {
     int len = bufferSize(pathFile) + 1;
     if (len == 0) return;
     if (len == 1) {
-      char *writePath = malloc (strlen(pathFile) -4);
+      char *writePath = malloc (strlen(pathFile) -3);
       strncpy(writePath, pathFile, strlen(pathFile)-4);
       writePath[strlen(pathFile)-4] = '\0';
+			printf("Path: %s\n", writePath);
       int fd = open(writePath, O_WRONLY|O_CREAT, 0700);
       fprintf(stderr, "Warning: Tried decompressing an empty file!\nEmpty decompressed file created!\n");
       return;
     }
     char* file = malloc(len);//file holds the compressed bits
     strcpy(file, findBuffer(pathFile));
-    char *writePath = malloc (strlen(pathFile) -4);
+    char *writePath = malloc (strlen(pathFile) -3);
     strncpy(writePath, pathFile, strlen(pathFile)-4);
     writePath[strlen(pathFile)-4] = '\0';
 
@@ -604,15 +569,7 @@ void decompressRecursive(char* filePath, treeNode* root) {
 				strcat(buffer, "/");
 				strcat(buffer, temp->d_name);
 				buffer[strlen(buffer)] = '\0';
-        if (root != NULL && bufferSize(buffer) != 0) {
-          decompress(buffer, root);
-        } else {
-          char *writePath = malloc (strlen(buffer) -4);
-          strncpy(writePath, buffer, strlen(buffer)-4);
-          writePath[strlen(buffer)-4] = '\0';
-          int fd = open(writePath, O_WRONLY|O_CREAT, 0700);
-          fprintf(stderr, "Warning: Tried decompressing an empty file!\nEmpty decompressed file created!\n");
-        }
+        decompress(buffer, root);
       }
     }
     i++;
