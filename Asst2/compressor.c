@@ -284,7 +284,7 @@ hashnode** compressInit(char* pathFile, char* pathHuffbook) {
     int n = 0;
     int num = strlen(buffer);
 
-    while(endIndex < num) { //insert buffer size
+    while(endIndex < num && (int)buffer[endIndex] != 10) { //insert buffer size
         while ((int)buffer[endIndex] != 9){
             endIndex++;
         }
@@ -427,6 +427,7 @@ treeNode* maketreeNode(char *token){
     strcpy(temp->token,token);
     temp->left = NULL;
     temp->right = NULL;
+    return temp;
 }
 
 void addPath(char* bitcode, char* token, treeNode *root){

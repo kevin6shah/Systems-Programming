@@ -9,3 +9,5 @@ To test the recursive calls on build, compress, decompress, we went through a si
 We also tested to build, compress, and decompress as symbolic file/link. 
 
 We also had many error checking mechanisms which include but are not limited to: NULL files, incorrect parameters, incorrect format of parameters, empty files. By which we induced the error and checked for the various error print statements we have in effect. These were also successful.
+
+As a final test, we managed to build, compress, and decompress the humongous text file from norvig.com/big.txt, which is about 50 MB. Albeit, it did take a while, but it worked without error.
