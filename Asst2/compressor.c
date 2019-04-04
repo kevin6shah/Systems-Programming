@@ -171,7 +171,6 @@ void makeHeap(hashnode **table){
 
 void build(char* filePath, char* huffmanPath) {
   int len = bufferSize(filePath) + 1;
-  printf("%d\n", len);
   if (len == 0) return;
   if (len == 1) { // Edge Case: In case the file given is NULL
     char *path = malloc(strlen(huffmanPath)+16);
@@ -327,7 +326,7 @@ void compress(char* pathFile, hashnode** table) {
       char *writePath = malloc (strlen(pathFile) + 5);
       strcpy(writePath,pathFile);
       strcat(writePath, ".hcz");
-			printf("Path: %s\n", writePath);
+			fprintf(stderr, "Path: %s\n", writePath);
       int fd = open(writePath, O_WRONLY|O_CREAT, 0700);
       fprintf(stderr, "Warning: Tried compressing an empty file!\nEmpty compressed file created!\n");
       return;
@@ -509,7 +508,7 @@ void decompress(char* pathFile, treeNode *root) {
       char *writePath = malloc (strlen(pathFile) -3);
       strncpy(writePath, pathFile, strlen(pathFile)-4);
       writePath[strlen(pathFile)-4] = '\0';
-			printf("Path: %s\n", writePath);
+			fprintf(stderr, "Path: %s\n", writePath);
       int fd = open(writePath, O_WRONLY|O_CREAT, 0700);
       fprintf(stderr, "Warning: Tried decompressing an empty file!\nEmpty decompressed file created!\n");
       return;
