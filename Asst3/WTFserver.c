@@ -10,9 +10,9 @@
 #include <pthread.h>
 #include <dirent.h>
 
-int client_socket;
+int server_socket;
 
-int send_file(char* server_path) {
+int send_file(int client_socket, char* server_path) {
   int fd = open(server_path, O_RDONLY);
   if (fd < 0) {
     printf("Incorrect path entered\n");
@@ -43,7 +43,7 @@ int send_file(char* server_path) {
   return 1;
 }
 
-void senddir(char* server_path, char* client_path) {
+void senddir(int client_socket, char* server_path, char* client_path) {
   DIR *directory = opendir(server_path);
   if (directory == NULL) {
     printf("Could not open directory\n");
@@ -67,7 +67,7 @@ void senddir(char* server_path, char* client_path) {
       write(client_socket, temp_path, strlen(temp_path));
       write(client_socket, "$TOKEN", strlen("$TOKEN"));
 
-      senddir(new_path, temp_path);
+      senddir(client_socket, new_path, temp_path);
     } else if (data->d_name[0] != '.') {
       // File
 
@@ -81,7 +81,7 @@ void senddir(char* server_path, char* client_path) {
       strcpy(new_path, server_path);
       strcat(new_path, "/");
       strcat(new_path, data->d_name);
-      if (!send_file(new_path)) {
+      if (!send_file(client_socket, new_path)) {
         printf("Error: Could not send '%s' to the server\n", new_path);
         write(client_socket, "$FFF$$TOKEN", strlen("$FFF$$TOKEN"));
       }
@@ -105,7 +105,7 @@ int exists(char* path, char* project_name) {
   return 0;
 }
 
-int checkout(char* project_name) {
+int checkout(int client_socket, char* project_name) {
   if (!exists("./", ".project_repo")) {
     mkdir(".project_repo", 0700);
     return 0;
@@ -119,13 +119,13 @@ int checkout(char* project_name) {
   write(client_socket, "$TOKEN", strlen("$TOKEN"));
   char server_path[250] = ".project_repo/";
   strcat(server_path, project_name);
-  senddir(server_path, project_name);
+  senddir(client_socket, server_path, project_name);
   printf("Checkout succeeded...\n");
   return 1;
 }
 
 void* main_process(void* socket) {
-  client_socket = *(int*) socket;
+  int client_socket = *(int*) socket;
   int i = 0, seen_colon = 0;
   char token[255], project_name[255];
 
@@ -150,20 +150,21 @@ void* main_process(void* socket) {
   }
 
   if (strcmp(token, "checkout") == 0) {
-    if (!checkout(project_name)) {
+    if (!checkout(client_socket, project_name)) {
       write(client_socket, "$FFF$$TOKEN", strlen("$FFF$$TOKEN"));
       printf("Checkout failed...\n");
     } else write(client_socket, "$***$$TOKEN", strlen("$***$$TOKEN"));
-    return NULL;
   }
+  // Else ifs after this
 
   close(client_socket);
+  close(server_socket);
   return NULL;
 }
 
 int connect_server(char *port) {
   // Create the socket
-  int server_socket = socket(AF_INET, SOCK_STREAM, 0);
+  server_socket = socket(AF_INET, SOCK_STREAM, 0);
   if (server_socket < 0) {
     printf("Issue trying to create socket\n");
     return 0;
@@ -186,18 +187,17 @@ int connect_server(char *port) {
   }
 
   // LISTEN
-  listen(server_socket, 5);
+  listen(server_socket, 50);
 
   // ACCEPT
   while(1) {
     pthread_t thread;
-    int current_socket = accept(server_socket, NULL, NULL);
-    if (current_socket != -1) {
+    int client_socket = accept(server_socket, NULL, NULL);
+    if (client_socket != -1) {
       printf("Established connection with a client!\n");
-      pthread_create(&thread, NULL, main_process, (void*) &current_socket);
+      pthread_create(&thread, NULL, main_process, (void*) &client_socket);
     }
   }
-  close(server_socket);
   return 1;
 }
 
