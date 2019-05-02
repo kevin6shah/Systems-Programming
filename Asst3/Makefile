@@ -3,4 +3,4 @@ all:
 	gcc WTFserver.c -o WTFserver -pthread
 
 clean:
-	rm WTF WTFserver
+	rm WTF WTFserver .*

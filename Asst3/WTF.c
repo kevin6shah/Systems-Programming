@@ -15,7 +15,6 @@ int client_socket;
 
 void handle() {
   printf("\n\nClient was interrupted... killing process now!\n");
-  write(client_socket, "bye$", strlen("bye$"));
   kill(getpid(), SIGTERM);
 }
 
@@ -38,6 +37,118 @@ void configure(char* ip, char* host) {
     write(fd, host, strlen(host));
     printf(".configure file was created sucessfully!\n");
   }
+}
+
+int exists(char* path, char* project_name) {
+  DIR *directory = opendir(path);
+  if (directory == NULL) {
+    printf("Could not open directory\n");
+    return;
+  }
+  struct dirent *data;
+  while ((data = readdir(directory)) != NULL) {
+    if (data->d_type == 4 && strcmp(data->d_name, ".") != 0 && strcmp(data->d_name, "..") != 0) {
+      if (strcmp(data->d_name, project_name) == 0) return 1;
+    }
+  }
+  closedir(directory);
+  return 0;
+}
+
+int recv_dir() {
+  char token[255];
+  char c;
+  int ready = 0, i = 0, size = 0, fd;
+  while (1) {
+    int n = read(client_socket, &c, 1);
+    if (n <= 0) break;
+    token[i] = c;
+    if (i > 5 && ready == 0 && token[i] == 'N' && token[i-1] == 'E' &&
+    token[i-2] == 'K' && token[i-3] == 'O' && token[i-4] == 'T' && token[i-5] == '$') {
+      token[i-5] = '\0';
+      ready = 1;
+    }
+    i++;
+    if (ready == 1) {
+      // ON SUCCESS SERVER SENDS $***$
+      if (strcmp(token, "$***$") == 0) break;
+
+      // ON FAILURE SERVER SENDS $***$
+      if (strcmp(token, "$FFF$") == 0) return 0;
+
+      // Token is ready
+      if (size == 1) {
+        // Size of A File -> We know
+        size = atoi(token);
+        if (size == 0) {
+          printf("An error occured with size\n");
+          return 0;
+        }
+        char *buffer = malloc(size+1);
+        char tmp;
+        int index = 0;
+        do {
+          int n = read(client_socket, &tmp, 1);
+          if (n < 0) {
+            printf("An error occured with read\n");
+            return 0;
+          }
+          buffer[index] = tmp;
+          index++;
+        } while(index < size);
+
+        char temp[6];
+        int n = read(client_socket, temp, 6);
+        if (n < 0) {
+          printf("An error occured with read\n");
+          return 0;
+        }
+        n = write(fd, buffer, size);
+        if (n < 0) {
+          printf("An error occured with write\n");
+          return 0;
+        }
+        size = 0;
+      } else if (token[0] == '#') {
+        // Directory
+        int n = mkdir(token+1, 0700);
+        if (n < 0) {
+          printf("Error trying to make '%s' directory\n", token+1);
+          return 0;
+        }
+      } else if (token[0] == '*') {
+        // File
+        fd = open(token+1, O_WRONLY | O_CREAT, 0700);
+        if (fd < 0) {
+          printf("Error trying to make '%s' file\n", token+1);
+          return 0;
+        }
+        size = 1;
+      } else {
+        printf("Structural Damage\n");
+        return 0;
+      }
+      bzero(token, 255);
+      i = 0;
+      ready = 0;
+    }
+  }
+  return 1;
+}
+
+int checkout(char* project_name) {
+  if (exists("./", project_name) || (!connect_client())) {
+    return 0;
+  }
+  write(client_socket, "checkout:", strlen("checkout:"));
+  write(client_socket, project_name, strlen(project_name));
+  write(client_socket, "$TOKEN", strlen("$TOKEN"));
+  if (!recv_dir()) {
+    printf("There occured an error checking out...\n");
+    return 0;
+  }
+  printf("Checkout was successful...\n");
+  return 1;
 }
 
 int connect_client() {
@@ -129,27 +240,16 @@ int main(int argc, char** argv) {
     return 0;
   }
 
+  signal(SIGINT,handle);
+
   if (strcmp(argv[1], "configure") == 0) {
     configure(argv[2], argv[3]);
     return 0;
-  }
-
-  signal(SIGINT,handle);
-
-  if (!connect_client()) return 0;
-
-  // Recieve Data
-  int n;
-  while (1) {
-    char str[250];
-    fgets(str, 250, stdin);
-    if (strcmp(str, "bye\n") == 0) {
-      strcat(str, "$");
-      write(client_socket, "bye", strlen("bye"));
-      break;
+  } else if (strcmp(argv[1], "checkout") == 0) {
+    if (!checkout(argv[2])) {
+      printf("Checkout failed...\n");
     }
-    strcat(str, "$");
-    write(client_socket, str, strlen(str));
+    return 0;
   }
 
   close(client_socket);
