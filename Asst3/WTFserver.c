@@ -157,7 +157,6 @@ void* main_process(void* socket) {
   // Else ifs after this
 
   close(client_socket);
-  close(server_socket);
   return NULL;
 }
 
@@ -188,13 +187,21 @@ int connect_server(char *port) {
   // LISTEN
   listen(server_socket, 50);
 
+  pthread_t thread[60];
+  int i = 0;
   // ACCEPT
-  while(1) {
-    pthread_t thread;
+  while(i < 2) {
     int client_socket = accept(server_socket, NULL, NULL);
     if (client_socket != -1) {
       printf("Established connection with a client!\n");
-      pthread_create(&thread, NULL, main_process, (void*) &client_socket);
+      pthread_create(&thread[i++], NULL, main_process, (void*) &client_socket);
+    }
+    if (i >= 50) {
+      i = 0;
+      while(i < 50) {
+        pthread_join(thread[i++],NULL);
+      }
+      i = 0;
     }
   }
   return 1;
