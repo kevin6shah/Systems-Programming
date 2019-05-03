@@ -70,7 +70,6 @@ void senddir(int client_socket, char* server_path, char* client_path) {
       senddir(client_socket, new_path, temp_path);
     } else if (data->d_name[0] != '.') {
       // File
-
       write(client_socket, "*", strlen("*"));
       write(client_socket, client_path, strlen(client_path));
       write(client_socket, "/", strlen("/"));
