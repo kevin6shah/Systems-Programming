@@ -194,16 +194,19 @@ int connect_server(char *port) {
     int client_socket = accept(server_socket, NULL, NULL);
     if (client_socket != -1) {
       printf("Established connection with a client!\n");
-      pthread_create(&thread[i++], NULL, main_process, (void*) &client_socket);
+      pthread_create(&thread[i], NULL, main_process, (void*) &client_socket);
     }
-    if (i >= 50) {
+    i++;
+    /*if (i >= 50) {
       i = 0;
       while(i < 50) {
         pthread_join(thread[i++],NULL);
       }
       i = 0;
-    }
+    }*/
   }
+  pthread_join(thread[0], NULL);
+  pthread_join(thread[1], NULL);
   return 1;
 }
 
