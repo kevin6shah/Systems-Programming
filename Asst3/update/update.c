@@ -66,7 +66,7 @@ node* linked_list_ptr;
 
 
  //function traverses project and generates linked list with information
- void printDir(char* filePath) {
+ void make_list(char* filePath) {
   DIR *directory = opendir(filePath);
 	struct dirent* temp;
 	if (directory == NULL) {
@@ -80,7 +80,7 @@ node* linked_list_ptr;
 			strcpy(buffer, filePath);
 			strcat(buffer, "/");
 			strcat(buffer, temp->d_name);
-			printDir(buffer);
+			make_list(buffer);
     }
     else if (temp->d_name[0] != '.') {
 
@@ -166,20 +166,20 @@ void nodeInsert(node* hashnode, node **table){
 
 }
 
-void update(char* project_name){
+node** parse_manifest(char* manifest_path, int* version_num){
 
   //server-client interaction will happen here.
   //assumes that the .Manfiest was given.
 
-  char* manifest_path = ".Manifest";
-  int fd = open(".Manifest", O_RDONLY);
+  //char* manifest_path = ".Manifest";
+  int fd = open(manifest_path, O_RDONLY);
   if (fd < 0) {
-    printf("Error creating the manifest file\n");
+    printf("Can't open the manifest file\n");
     return 0;
   }
 
   //next step is to create a hashtable (size 100), hashed to the name of the file
-  node **HashTable = createTable();
+  node** HashTable = createTable();
   //this will store the server's .Manifest file
   //now to parse the file and actually store it inside
 
@@ -206,6 +206,7 @@ while(not_end_of_file){
   }
   if (line_number == 0){
     version_manifest = atoi(line_buffer);
+    *version_num = version_manifest;
     line_number ++;
     continue;
   }
@@ -245,20 +246,42 @@ while(not_end_of_file){
 
   nodeInsert(hashnode, HashTable);
 
-
-
 }
 
-
+return HashTable;
 }
+
+void update(char* project_name, node* head){
+  int server_manifest_version, client_manifest_version;
+  node **hash_server = parse_manifest(".Manifest", &server_manifest_version);
+  char path[255];
+  strcpy(path, project_name);
+  strcat(path, "/.Manifest");
+  node **hash_local = parse_manifest(path, &client_manifest_version);
+  printf("Client Manifest V#: %d\n", client_manifest_version);
+  printf("Server Manifest V#: %d\n", server_manifest_version);
+  /*node *ptr; //of linkedl list
+  for(ptr = head; ptr != NULL; ptr = ptr->next){
+    int key = getkey(ptr->filename);
+    node *pointer = HashTable[key]; //of hashtable
+    while(pointer != NULL){
+      if (strcmp(ptr->filename, pointer->filename)==0){
+        if(strcmp(ptr->filepath, pointer->filepath)==0){
+
+        }
+      }
+    }
+  }*/
+}
+
 
 int main(int argc, char* argv[]){
 
   node *head = malloc(sizeof(node));
   linked_list_ptr = head;
-  //printDir(argv[1]);
-  //if (!createManfiest(head)) printf("FAILURE\n");
-  update(argv[1]);
+  make_list(argv[1]);
+  if (!createManfiest(head)) printf("FAILURE\n");
+  update(argv[1], head->next);
 
 
 
