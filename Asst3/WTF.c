@@ -55,7 +55,7 @@ int exists(char* path, char* project_name) {
   return 0;
 }
 
-int recv_dir() {
+int recieve() {
   char token[255];
   char c;
   int ready = 0, i = 0, size = 0, fd;
@@ -143,11 +143,41 @@ int checkout(char* project_name) {
   write(client_socket, "checkout:", strlen("checkout:"));
   write(client_socket, project_name, strlen(project_name));
   write(client_socket, "$TOKEN", strlen("$TOKEN"));
-  if (!recv_dir()) {
+  if (!recieve()) {
     printf("There occured an error checking out...\n");
     return 0;
   }
   printf("Checkout was successful...\n");
+  return 1;
+}
+
+int create(char* project_name) {
+  if (exists("./", project_name) || (!connect_client())) {
+    return 0;
+  }
+  write(client_socket, "create:", strlen("create:"));
+  write(client_socket, project_name, strlen(project_name));
+  write(client_socket, "$TOKEN", strlen("$TOKEN"));
+  if (!recieve()) {
+    printf("There occured an error creating the project...\n");
+    return 0;
+  }
+  printf("Create was successful...\n");
+  return 1;
+}
+
+int update(char* project_name) {
+  if (!connect_client()) {
+    return 0;
+  }
+  write(client_socket, "update:", strlen("update:"));
+  write(client_socket, project_name, strlen(project_name));
+  write(client_socket, "$TOKEN", strlen("$TOKEN"));
+  if (!recieve()) {
+    printf("There occured an error recieving the .Manifest from the server...\n");
+    return 0;
+  }
+  printf("Update was successful...\n");
   return 1;
 }
 
@@ -249,7 +279,14 @@ int main(int argc, char** argv) {
     if (!checkout(argv[2])) {
       printf("Checkout failed...\n");
     }
-    return 0;
+  } else if (strcmp(argv[1], "create") == 0) {
+    if (!create(argv[2])) {
+      printf("Create failed...\n");
+    }
+  } else if (strcmp(argv[1], "update") == 0) {
+    if (!update(argv[2])) {
+      printf("Update failed...\n");
+    }
   }
 
   close(client_socket);

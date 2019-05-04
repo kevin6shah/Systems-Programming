@@ -43,7 +43,7 @@ int send_file(int client_socket, char* server_path) {
   return 1;
 }
 
-void senddir(int client_socket, char* server_path, char* client_path) {
+void senddir_helper(int client_socket, char* server_path, char* client_path) {
   DIR *directory = opendir(server_path);
   if (directory == NULL) {
     printf("Could not open directory\n");
@@ -67,8 +67,8 @@ void senddir(int client_socket, char* server_path, char* client_path) {
       write(client_socket, temp_path, strlen(temp_path));
       write(client_socket, "$TOKEN", strlen("$TOKEN"));
 
-      senddir(client_socket, new_path, temp_path);
-    } else if (data->d_name[0] != '.') {
+      senddir_helper(client_socket, new_path, temp_path);
+    } else if (data->d_type != 4) {
       // File
       write(client_socket, "*", strlen("*"));
       write(client_socket, client_path, strlen(client_path));
@@ -104,22 +104,102 @@ int exists(char* path, char* project_name) {
   return 0;
 }
 
-int checkout(int client_socket, char* project_name) {
-  if (!exists("./", ".project_repo")) {
-    mkdir(".project_repo", 0700);
+int most_recent_version(char* path) {
+  DIR *directory = opendir(path);
+  if (directory == NULL) {
+    printf("Could not open directory\n");
     return 0;
   }
-  if (!exists(".project_repo/", project_name)) {
-    return 0;
+  int recent_version = 0;
+  struct dirent *data;
+  while ((data = readdir(directory)) != NULL) {
+    if (data->d_type == 4 && strcmp(data->d_name, ".") != 0 && strcmp(data->d_name, "..") != 0) {
+      // Directory
+      int temp = atoi((data->d_name) + 7);
+      if (temp == 0) return 0;
+      int current_version = temp;
+      if (current_version > recent_version) {
+        recent_version = current_version;
+      }
+    }
   }
-  // NEED TO WORK ON BELOW
+  return recent_version;
+}
+
+int senddir(int client_socket, char* project_name) {
   write(client_socket, "#", strlen("#"));
   write(client_socket, project_name, strlen(project_name));
   write(client_socket, "$TOKEN", strlen("$TOKEN"));
-  char server_path[250] = ".project_repo/";
+  char server_path[255] = ".server_repo/";
   strcat(server_path, project_name);
-  senddir(client_socket, server_path, project_name);
+  strcat(server_path, "/");
+
+  int recent_version = most_recent_version(server_path);
+  if (recent_version == 0) return 0;
+  char rec_version[255];
+  sprintf(rec_version, "%d", recent_version);
+  strcat(server_path, "version");
+  strcat(server_path, rec_version);
+  senddir_helper(client_socket, server_path, project_name);
   printf("Checkout succeeded...\n");
+  return 1;
+}
+
+int checkout(int client_socket, char* project_name) {
+  if (!exists("./", ".server_repo") || !exists(".server_repo/", project_name)) {
+    return 0;
+  }
+
+  if (!senddir(client_socket, project_name)) return 0;
+
+  return 1;
+}
+
+int create(int client_socket, char* project_name) {
+  char path[255] = ".server_repo/";
+  if (!exists("./", ".server_repo")) {
+    mkdir(".server_repo", 0700);
+  } else {
+    if (exists(path, project_name)) return 0;
+  }
+  strcat(path, project_name);
+  mkdir(path, 0700);
+  strcat(path, "/version1");
+  mkdir(path, 0700);
+  strcat(path, "/.Manifest");
+  int fd = open(path, O_WRONLY | O_CREAT, 0700);
+  if (fd < 0) {
+    printf("Could not create the Manifest file...\n");
+    return 0;
+  }
+  write(fd, "0", 1);
+  close(fd);
+  if (!senddir(client_socket, project_name)) return 0;
+  return 1;
+}
+
+int update(int client_socket, char* project_name) {
+  if (!exists("./", ".server_repo") || !exists(".server_repo/", project_name)) {
+    return 0;
+  }
+  write(client_socket, "*", 1);
+  write(client_socket, ".Manifest", strlen(".Manifest"));
+  write(client_socket, "$TOKEN", strlen("$TOKEN"));
+
+  char new_path[255] = ".server_repo/";
+  strcat(new_path, project_name);
+  strcat(new_path, "/");
+  int recent_version = most_recent_version(new_path);
+  if (recent_version == 0) return 0;
+  char version[255];
+  sprintf(version, "%d", recent_version);
+  strcat(new_path, "version");
+  strcat(new_path, version);
+  strcat(new_path, "/.Manifest");
+  if (!send_file(client_socket, new_path)) {
+    printf("Error: Could not send '%s' to the server\n", new_path);
+    return 0;
+  }
   return 1;
 }
 
@@ -152,6 +232,16 @@ void* main_process(void* socket) {
     if (!checkout(client_socket, project_name)) {
       write(client_socket, "$FFF$$TOKEN", strlen("$FFF$$TOKEN"));
       printf("Checkout failed...\n");
+    } else write(client_socket, "$***$$TOKEN", strlen("$***$$TOKEN"));
+  } else if (strcmp(token, "create") == 0) {
+    if (!create(client_socket, project_name)) {
+      write(client_socket, "$FFF$$TOKEN", strlen("$FFF$$TOKEN"));
+      printf("Create failed...\n");
+    } else write(client_socket, "$***$$TOKEN", strlen("$***$$TOKEN"));
+  } else if (strcmp(token, "update") == 0) {
+    if (!update(client_socket, project_name)) {
+      write(client_socket, "$FFF$$TOKEN", strlen("$FFF$$TOKEN"));
+      printf("Update failed...\n");
     } else write(client_socket, "$***$$TOKEN", strlen("$***$$TOKEN"));
   }
   // Else ifs after this
@@ -190,23 +280,14 @@ int connect_server(char *port) {
   pthread_t thread[60];
   int i = 0;
   // ACCEPT
-  while(i < 2) {
+  while(1) {
     int client_socket = accept(server_socket, NULL, NULL);
     if (client_socket != -1) {
       printf("Established connection with a client!\n");
       pthread_create(&thread[i], NULL, main_process, (void*) &client_socket);
     }
     i++;
-    /*if (i >= 50) {
-      i = 0;
-      while(i < 50) {
-        pthread_join(thread[i++],NULL);
-      }
-      i = 0;
-    }*/
   }
-  pthread_join(thread[0], NULL);
-  pthread_join(thread[1], NULL);
   return 1;
 }
 
