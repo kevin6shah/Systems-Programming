@@ -200,7 +200,9 @@ while(not_end_of_file){
       line_buffer = realloc(line_buffer, num);
     }
   }
-  line_buffer[count] = '\0';
+  line_buffer[count] = '\t';
+  if (num == count) line_buffer = realloc(line_buffer, num + 2);
+  line_buffer[++count] = '\0';
   if (strlen(line_buffer) < 1){
     break;
   }
@@ -214,34 +216,33 @@ while(not_end_of_file){
   node* hashnode = malloc(sizeof(node));
 
   //now we parse through each line.
-  int tab_counter = 0;
-  int index = 0;
-  while(index < strlen(line_buffer)){
-    int start_ind = index;;
-    int end_ind = index;
-    while (line_buffer[index] != '\t'){
-        end_ind++;
-        index++;
+
+  if (strlen(line_buffer) < 2) continue;
+  int i, j = 0, tabs_seen = 0;
+  char token[PATH_MAX];
+  for (i = 0; i < strlen(line_buffer); i++) {
+    if (line_buffer[i] == '\t') {
+      token[j] = '\0';
+      tabs_seen++;
+      if (tabs_seen == 1) {
+        hashnode->version = atoi(token);
+      } else if (tabs_seen == 2) {
+        hashnode->filename = malloc(strlen(token) + 1);
+        strcpy(hashnode->filename, token);
+      } else if (tabs_seen == 3) {
+        hashnode->filepath = malloc(strlen(token) + 1);
+        strcpy(hashnode->filepath, token);
+      } else if (tabs_seen == 4) {
+        hashnode->code = malloc(strlen(token) + 1);
+        strcpy(hashnode->code, token);
+        break;
+      } else break;
+      j = 0;
+      bzero(token, PATH_MAX);
+      continue;
     }
-    int size = (end_ind - start_ind) + 2;
-    char* temp_string = malloc (size);
-    strncpy(temp_string, line_buffer + start_ind, size -1);
-    printf("temps: %s\n", temp_string);
-    if (tab_counter == 0){
-      hashnode->version = atoi(temp_string);
-    } else if(tab_counter == 1){
-      hashnode->filename = malloc(strlen(temp_string) + 1);
-      strcpy(hashnode->filename, temp_string);
-    } else if(tab_counter == 2){
-      hashnode->filepath = malloc(strlen(temp_string) + 1);
-      strcpy(hashnode->filepath, temp_string);
-    } else if(tab_counter == 3){
-      hashnode->code = malloc(strlen(temp_string) + 1);
-      strcpy(hashnode->code, temp_string);
-    }
-    tab_counter++;
-    index++;
-    if(tab_counter > 3) break;
+    token[j] = line_buffer[i];
+    j++;
   }
 
   nodeInsert(hashnode, HashTable);
@@ -251,28 +252,98 @@ while(not_end_of_file){
 return HashTable;
 }
 
+void printHash(node** HashTable){
+  int i;
+  for (i = 0; i < 150; i++){
+    if(HashTable[i] == NULL) continue;
+    node* ptr = HashTable[i];
+    for(;ptr != NULL; ptr = ptr->next){
+      printf("filename: %s, key: %d\n", ptr->filename, i);
+
+    }
+  }
+}
+
+
+node* search_node(node *live_file, node** HashTable){
+  int key = getkey(live_file->filename);
+  node *pointer = HashTable[key]; //of hashtable
+  while(pointer != NULL){
+    if (strcmp(live_file->filename, pointer->filename)==0){
+      if(strcmp(live_file->filepath, pointer->filepath)==0){
+        //file exists
+        return pointer;
+      }
+    }
+    pointer = pointer->next;
+  }
+  node *temp = malloc(sizeof(node));
+  temp->filename = "does not exist";
+  return temp;
+}
+
+
 void update(char* project_name, node* head){
   int server_manifest_version, client_manifest_version;
   node **hash_server = parse_manifest(".Manifest", &server_manifest_version);
   char path[255];
   strcpy(path, project_name);
   strcat(path, "/.Manifest");
-  node **hash_local = parse_manifest(path, &client_manifest_version);
-  printf("Client Manifest V#: %d\n", client_manifest_version);
-  printf("Server Manifest V#: %d\n", server_manifest_version);
-  /*node *ptr; //of linkedl list
-  for(ptr = head; ptr != NULL; ptr = ptr->next){
-    int key = getkey(ptr->filename);
-    node *pointer = HashTable[key]; //of hashtable
-    while(pointer != NULL){
-      if (strcmp(ptr->filename, pointer->filename)==0){
-        if(strcmp(ptr->filepath, pointer->filepath)==0){
+  node **hash_client = parse_manifest(path, &client_manifest_version);
+  //printf("Client Manifest V#: %d\n", client_manifest_version);
+  //printf("Server Manifest V#: %d\n", server_manifest_version);
+  node *ptr; //of linkedl list
+  //this one traverses through linked list of live files
 
+  for(ptr = head; ptr != NULL; ptr = ptr->next){
+    node *file_client = search_node(ptr, hash_client);
+    node *file_server = search_node(ptr, hash_server);
+    printf("Client: %s Server: %s\n", file_client->filename, file_server->filename);
+
+
+    if (strcmp(file_client->filename, "does not exist") != 0 && strcmp(file_server->filename, "does not exist") ==0){
+      //in client but not in server
+      if (server_manifest_version == client_manifest_version){
+        //upload
+        printf("U:\t%s\n", file_client->filepath);
+      } else{
+        //delete
+        printf("D:\t%s\n", file_client->filepath);
+      }
+    } else if((strcmp(file_client->filename, "does not exist") != 0 && strcmp(file_server->filename, "does not exist") !=0
+      && server_manifest_version == client_manifest_version)
+      && strcmp(file_server->code, ptr->code) != 0) {
+        //upload
+        printf("U:\t%s\n", file_client->filepath);
+    } else if(strcmp(file_client->filename, "does not exist") != 0 && strcmp(file_server->filename, "does not exist") !=0){
+        //file exists in both server and client manifests
+        if(server_manifest_version != client_manifest_version && file_client->version != file_server->version){
+          //modify
+          printf("M:\t%s\n", file_client->filepath);
+        }
+    } else printf("NULL\n");
+  }
+
+  //now to see what files from the server are not in the client.
+
+    int i;
+    for (i = 0; i < 150; i++){
+      if(hash_server[i] == NULL) continue;
+      node* ptr = hash_server[i];
+      for(;ptr != NULL; ptr = ptr->next){
+        node* test = search_node(ptr, hash_client);
+        if(strcmp(test->filename, "does not exist") == 0){
+          printf("A:\t%s\n", ptr->filepath);
         }
       }
     }
-  }*/
+
+
+
+
 }
+
+
 
 
 int main(int argc, char* argv[]){
@@ -280,9 +351,7 @@ int main(int argc, char* argv[]){
   node *head = malloc(sizeof(node));
   linked_list_ptr = head;
   make_list(argv[1]);
-  if (!createManfiest(head)) printf("FAILURE\n");
   update(argv[1], head->next);
-
 
 
   return 0;
