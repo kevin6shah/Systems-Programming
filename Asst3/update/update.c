@@ -30,7 +30,7 @@ node* linked_list_ptr;
      int fd = open(filepath, O_RDONLY);
    if (fd < 0) {
      printf("Incorrect Path Given... exiting ...\n");
-     return 0;
+     return NULL;
    }
 
    struct stat stats;
@@ -66,7 +66,7 @@ node* linked_list_ptr;
 
 
  //function traverses project and generates linked list with information
- void make_list(char* filePath) {
+ void make_list(char* filePath, node** HashTable) {
   DIR *directory = opendir(filePath);
 	struct dirent* temp;
 	if (directory == NULL) {
@@ -80,7 +80,7 @@ node* linked_list_ptr;
 			strcpy(buffer, filePath);
 			strcat(buffer, "/");
 			strcat(buffer, temp->d_name);
-			make_list(buffer);
+			make_list(buffer, HashTable);
     }
     else if (temp->d_name[0] != '.') {
 
@@ -98,8 +98,9 @@ node* linked_list_ptr;
         strcpy(temp_node->filepath, buffer);                        //filepath
         temp_node->filename = malloc(temp->d_reclen + 1);
         strcpy(temp_node->filename, temp->d_name);                  //filename
-        linked_list_ptr->next = temp_node;
-        linked_list_ptr = temp_node;
+        //linked_list_ptr->next = temp_node;
+        //linked_list_ptr = temp_node;
+        nodeInsert(temp_node, HashTable);
       }
     }
 
@@ -133,6 +134,7 @@ int createManfiest(node *head){
 }
 node** createTable(){
     node** HashTable = malloc (150 * sizeof(node*));
+    bzero(HashTable, sizeof(node*)*150);
     return HashTable;
 }
 
@@ -283,52 +285,60 @@ node* search_node(node *live_file, node** HashTable){
 }
 
 
-void update(char* project_name, node* head){
+void update(char* project_name){
+  node** live_hash = createTable();
+  make_list(project_name, live_hash);
   int server_manifest_version, client_manifest_version;
   node **hash_server = parse_manifest(".Manifest", &server_manifest_version);
   char path[255];
   strcpy(path, project_name);
   strcat(path, "/.Manifest");
   node **hash_client = parse_manifest(path, &client_manifest_version);
-  //printf("Client Manifest V#: %d\n", client_manifest_version);
-  //printf("Server Manifest V#: %d\n", server_manifest_version);
-  node *ptr; //of linkedl list
+  //node *ptr; //of linkedl list
   //this one traverses through linked list of live files
 
-  for(ptr = head; ptr != NULL; ptr = ptr->next){
-    node *file_client = search_node(ptr, hash_client);
-    node *file_server = search_node(ptr, hash_server);
-    printf("Client: %s Server: %s\n", file_client->filename, file_server->filename);
-
-
-    if (strcmp(file_client->filename, "does not exist") != 0 && strcmp(file_server->filename, "does not exist") ==0){
-      //in client but not in server
-      if (server_manifest_version == client_manifest_version){
-        //upload
-        printf("U:\t%s\n", file_client->filepath);
-      } else{
-        //delete
-        printf("D:\t%s\n", file_client->filepath);
+  int i;
+  for (i = 0; i < 150; i++){
+    if(hash_client[i] == NULL) continue;
+    node* file_client = hash_client[i];
+    for(;file_client != NULL; file_client = file_client->next){
+      node* file_server = search_node(file_client, hash_server);
+      node *ptr = search_node(file_client, live_hash);
+      if(strcmp(ptr->filename, "does not exist") ==0){
+        printf("file (%s) has been removed from the local project\n", file_client->filepath);
       }
-    } else if((strcmp(file_client->filename, "does not exist") != 0 && strcmp(file_server->filename, "does not exist") !=0
-      && server_manifest_version == client_manifest_version)
-      && strcmp(file_server->code, ptr->code) != 0) {
-        //upload
-        printf("U:\t%s\n", file_client->filepath);
-    } else if(strcmp(file_client->filename, "does not exist") != 0 && strcmp(file_server->filename, "does not exist") !=0){
-        //file exists in both server and client manifests
-        if(server_manifest_version != client_manifest_version && file_client->version != file_server->version){
-          //modify
-          printf("M:\t%s\n", file_client->filepath);
+
+      if (strcmp(file_server->filename, "does not exist") ==0){
+        //in client but not in server
+        if (server_manifest_version == client_manifest_version){
+          //upload
+          printf("U:\t%s\n", file_client->filepath);
+        } else{
+          //delete
+          printf("D:\t%s\n", file_client->filepath);
         }
-    } else printf("NULL\n");
+      } else if(strcmp(file_server->filename, "does not exist") !=0
+        && server_manifest_version == client_manifest_version
+        && strcmp(file_server->code, ptr->code) != 0) {
+          //upload
+          printf("U:\t%s\n", file_client->filepath);
+      } else if(strcmp(file_server->filename, "does not exist") !=0){
+          //file exists in both server and client manifests
+          if(server_manifest_version != client_manifest_version && file_client->version != file_server->version){
+            //modify
+            printf("M:\t%s\n", file_client->filepath);
+          }
+      } else printf("NULL\n");
+
+
+    }
   }
 
   //now to see what files from the server are not in the client.
 
-    int i;
-    for (i = 0; i < 150; i++){
-      if(hash_server[i] == NULL) continue;
+    int j;
+    for (j = 0; j < 150; j++){
+      if(hash_server[j] == NULL) continue;
       node* ptr = hash_server[i];
       for(;ptr != NULL; ptr = ptr->next){
         node* test = search_node(ptr, hash_client);
@@ -348,10 +358,8 @@ void update(char* project_name, node* head){
 
 int main(int argc, char* argv[]){
 
-  node *head = malloc(sizeof(node));
-  linked_list_ptr = head;
-  make_list(argv[1]);
-  update(argv[1], head->next);
+
+  update(argv[1]);
 
 
   return 0;
