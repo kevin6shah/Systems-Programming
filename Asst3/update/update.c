@@ -349,12 +349,13 @@ void update(char* project_name){
 
       } else if (!completed_if_else_command){
         error = 1;
-        printf("M:\t%s\n", file_client->filepath);
+        printf("conflicting files :\t%s\n", file_client->filepath);
 
 
       }
     }
   }
+
 
   //now to see what files from the server are not in the client.
 
@@ -379,6 +380,9 @@ void update(char* project_name){
           write(fd, "\n", 1);
 
         }
+      }
+      if (error){
+        remove(".Update");
       }
     }
 
