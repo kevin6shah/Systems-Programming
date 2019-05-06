@@ -19,10 +19,7 @@ typedef struct node{
   char *filepath;
   char *filename;
   struct node* next;
-
 }node;
-
-node* linked_list_ptr;
 
  char* gethash(char* filepath){
      int fd = open(filepath, O_RDONLY);
@@ -317,8 +314,8 @@ int commit(char* project_name){
             write(fd, version_buffer, strlen(version_buffer));
             write(fd,"\t",1);
             write(fd, ptr->filepath, strlen(ptr->filepath));
-            write(fd,"\t",1);
-            write(fd, temp->code, strlen(temp->code));
+            //write(fd,"\t",1);
+            //write(fd, temp->code, strlen(temp->code));
             write(fd,"\n",1);
           }
         }

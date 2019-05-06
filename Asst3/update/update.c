@@ -11,7 +11,6 @@
 #include <dirent.h>
 #include <signal.h>
 #include <openssl/sha.h>
-#define _GNU_SOURCE
 
 
 
@@ -51,21 +50,6 @@ node* linked_list_ptr;
    return hash;
  }
 
- //has to request server for its current .Manifest file
- //generates a hash for every file in the project client side
- //compares it with each file in the server .Manifest
-
-
- //GAMEPLAN: take the server .Manfest and store the contents in a hashtable:
- // -> the name of the file will be whats "hashed"
-
-
-
- //makeManifest: makes a .manifest file from the project.
- //sets current version to zero:
-
-
- //function traverses project and generates linked list with information
  void make_list(char* filePath, node** HashTable) {
   DIR *directory = opendir(filePath);
 	struct dirent* temp;
@@ -294,14 +278,20 @@ void update(char* project_name){
   strcpy(path, project_name);
   strcat(path, "/.Manifest");
   node **hash_client = parse_manifest(path, &client_manifest_version);
-  //node *ptr; //of linkedl list
-  //this one traverses through linked list of live files
 
+  int fd = open(".Update", O_WRONLY | O_CREAT, 0700);
+  if (fd < 0) {
+    printf("Error creating the manifest file\n");
+    return 0;
+  }
   int i;
+
+  int error = 0;
   for (i = 0; i < 150; i++){
     if(hash_client[i] == NULL) continue;
     node* file_client = hash_client[i];
     for(;file_client != NULL; file_client = file_client->next){
+      int completed_if_else_command = 0;
       node* file_server = search_node(file_client, hash_server);
       node *ptr = search_node(file_client, live_hash);
       if(strcmp(ptr->filename, "does not exist") ==0){
@@ -312,25 +302,57 @@ void update(char* project_name){
         //in client but not in server
         if (server_manifest_version == client_manifest_version){
           //upload
+          completed_if_else_command = 1;
           printf("U:\t%s\n", file_client->filepath);
         } else{
           //delete
+          completed_if_else_command = 1;
           printf("D:\t%s\n", file_client->filepath);
+          write(fd, "D\t", strlen("D\t"));
+          char* version_num_buff = malloc(10);
+          int tmp = file_client->version;
+          sprintf(version_num_buff,"%d", tmp);
+          write(fd, version_num_buff, sizeof(version_num_buff));
+          write(fd, "\t", 1);
+          write(fd, file_client->filename, strlen(file_client->filename));
+          write(fd, "\t", 1);
+          write(fd, file_client->filepath, strlen(file_client->filepath));
+          write(fd, "\t", 1);
+          write(fd, file_client->code, strlen(file_client->code));
+          write(fd, "\n", 1);
+
         }
-      } else if(strcmp(file_server->filename, "does not exist") !=0
-        && server_manifest_version == client_manifest_version
-        && strcmp(file_server->code, ptr->code) != 0) {
-          //upload
-          printf("U:\t%s\n", file_client->filepath);
       } else if(strcmp(file_server->filename, "does not exist") !=0){
-          //file exists in both server and client manifests
-          if(server_manifest_version != client_manifest_version && file_client->version != file_server->version){
+          //file exists in both the server and client manifests
+         if(server_manifest_version == client_manifest_version && strcmp(file_server->code, ptr->code) != 0) {
+          //upload
+          completed_if_else_command = 1;
+          printf("U:\t%s\n", file_client->filepath);
+        } else if(server_manifest_version != client_manifest_version && file_client->version != file_server->version){
             //modify
+            completed_if_else_command = 1;
             printf("M:\t%s\n", file_client->filepath);
-          }
-      } else printf("NULL\n");
+            write(fd, "M\t", strlen("M\t"));
+            char* version_num_buff = malloc(10);
+            sprintf(version_num_buff,"%d", file_server->version);
+            write(fd, version_num_buff, sizeof(version_num_buff));
+            write(fd, "\t", 1);
+            write(fd, file_client->filename, strlen(file_client->filename));
+            write(fd, "\t", 1);
+            write(fd, file_client->filepath, strlen(file_client->filepath));
+            write(fd, "\t", 1);
+            write(fd, file_server->code, strlen(file_server->code));
+            write(fd, "\n", 1);
+        } else if(server_manifest_version == client_manifest_version && file_client->version == file_server->version && strcmp(file_client->code, file_server->code)==0){
+            completed_if_else_command = 1;
+        }
+
+      } else if (!completed_if_else_command){
+        error = 1;
+        printf("M:\t%s\n", file_client->filepath);
 
 
+      }
     }
   }
 
@@ -344,6 +366,18 @@ void update(char* project_name){
         node* test = search_node(ptr, hash_client);
         if(strcmp(test->filename, "does not exist") == 0){
           printf("A:\t%s\n", ptr->filepath);
+          write(fd, "A\t", strlen("A\t"));
+          char* version_num_buff = malloc(10);
+          sprintf(version_num_buff,"%d", ptr->version);
+          write(fd, version_num_buff, sizeof(version_num_buff));
+          write(fd, "\t", 1);
+          write(fd, ptr->filename, strlen(ptr->filename));
+          write(fd, "\t", 1);
+          write(fd, ptr->filepath, strlen(ptr->filepath));
+          write(fd, "\t", 1);
+          write(fd, ptr->code, strlen(ptr->code));
+          write(fd, "\n", 1);
+
         }
       }
     }

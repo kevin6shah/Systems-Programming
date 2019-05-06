@@ -263,7 +263,6 @@ node* delete(char* filepath, node *front){
         }
     }
     return head;
-
 }
 
 int remuuv(char* project_name, char* file_old_path){

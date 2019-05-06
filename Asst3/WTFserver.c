@@ -1,14 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <unistd.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <pthread.h>
-#include <dirent.h>
+#include "data.h"
 
 int server_socket;
 
@@ -40,6 +30,87 @@ int send_file(int client_socket, char* server_path) {
   }
 
   write(client_socket, "$TOKEN", strlen("$TOKEN"));
+  return 1;
+}
+
+int recieve(int client_socket) {
+  char token[255];
+  char c;
+  int ready = 0, i = 0, size = 0, fd;
+  while (1) {
+    int n = read(client_socket, &c, 1);
+    if (n <= 0) break;
+    token[i] = c;
+    if (i > 5 && ready == 0 && token[i] == 'N' && token[i-1] == 'E' &&
+    token[i-2] == 'K' && token[i-3] == 'O' && token[i-4] == 'T' && token[i-5] == '$') {
+      token[i-5] = '\0';
+      ready = 1;
+    }
+    i++;
+    if (ready == 1) {
+      // ON SUCCESS SERVER SENDS $***$
+      if (strcmp(token, "$***$") == 0) break;
+
+      // ON FAILURE SERVER SENDS $***$
+      if (strcmp(token, "$FFF$") == 0) return 0;
+
+      // Token is ready
+      if (size == 1) {
+        // Size of A File -> We know
+        size = atoi(token);
+        if (size == 0) {
+          printf("An error occured with size\n");
+          return 0;
+        }
+        char *buffer = malloc(size+1);
+        char tmp;
+        int index = 0;
+        do {
+          int n = read(client_socket, &tmp, 1);
+          if (n < 0) {
+            printf("An error occured with read\n");
+            return 0;
+          }
+          buffer[index] = tmp;
+          index++;
+        } while(index < size);
+
+        char temp[6];
+        int n = read(client_socket, temp, 6);
+        if (n < 0) {
+          printf("An error occured with read\n");
+          return 0;
+        }
+        n = write(fd, buffer, size);
+        if (n < 0) {
+          printf("An error occured with write\n");
+          return 0;
+        }
+        size = 0;
+      } else if (token[0] == '#') {
+        // Directory
+        int n = mkdir(token+1, 0700);
+        if (n < 0) {
+          printf("Error trying to make '%s' directory\n", token+1);
+          return 0;
+        }
+      } else if (token[0] == '*') {
+        // File
+        fd = open(token+1, O_WRONLY | O_CREAT, 0700);
+        if (fd < 0) {
+          printf("Error trying to make '%s' file\n", token+1);
+          return 0;
+        }
+        size = 1;
+      } else {
+        printf("Structural Damage\n");
+        return 0;
+      }
+      bzero(token, 255);
+      i = 0;
+      ready = 0;
+    }
+  }
   return 1;
 }
 
@@ -172,7 +243,7 @@ int create(int client_socket, char* project_name) {
     printf("Could not create the Manifest file...\n");
     return 0;
   }
-  write(fd, "0", 1);
+  write(fd, "0\n", strlen("0\n"));
   close(fd);
   if (!senddir(client_socket, project_name)) return 0;
   return 1;
@@ -203,26 +274,86 @@ int update(int client_socket, char* project_name) {
   return 1;
 }
 
+int push(int client_socket, char* project_name) {
+  if (!exists("./", ".server_repo") || !exists(".server_repo/", project_name)) {
+    return 0;
+  }
+  char new_path[255] = ".server_repo/";
+  strcat(new_path, project_name);
+  strcat(new_path, "/");
+  int version = most_recent_version(new_path);
+  char vp[255];
+  sprintf(vp, "%d", version);
+  write(client_socket, vp, strlen(vp));
+  write(client_socket, "$", 1);
+  
+}
+
+int commit(int client_socket, char* project_name) {
+  if (!exists("./", ".server_repo") || !exists(".server_repo/", project_name)) {
+    return 0;
+  }
+  write(client_socket, "*", 1);
+  write(client_socket, ".Manifest", strlen(".Manifest"));
+  write(client_socket, "$TOKEN", strlen("$TOKEN"));
+
+  char new_path[255] = ".server_repo/";
+  strcat(new_path, project_name);
+  strcat(new_path, "/");
+  int recent_version = most_recent_version(new_path);
+  if (recent_version == 0) return 0;
+  char version[255];
+  sprintf(version, "%d", recent_version);
+  strcat(new_path, "version");
+  strcat(new_path, version);
+  strcat(new_path, "/.Manifest");
+  if (!send_file(client_socket, new_path)) {
+    printf("Error: Could not send '%s' to the server\n", new_path);
+    return 0;
+  }
+  write(client_socket, "$***$$TOKEN", strlen("$***$$TOKEN"));
+  write(client_socket, version, strlen(version));
+  write(client_socket, "$", strlen("$"));
+  if (!recieve(client_socket)) {
+    printf("Error: Commit failed\n");
+    return 0;
+  }
+  printf("Commit Succeeded\n");
+  return 1;
+}
+
 void* main_process(void* socket) {
   int client_socket = *(int*) socket;
   int i = 0, seen_colon = 0;
-  char token[255], project_name[255];
+  char token[255], project_name[255], file_path[255];
 
   char c;
   while(read(client_socket, &c, 1) > 0) {
     if (c == ':') {
-      token[i] = '\0';
+      if (seen_colon == 1) {
+        project_name[i] = '\0';
+        seen_colon = 2;
+      } else {
+        token[i] = '\0';
+        seen_colon = 1;
+      }
       i = -1;
-      seen_colon = 1;
     }
     if (seen_colon == 0) {
       token[i] = c;
     } else if (seen_colon == 1 && i >= 0) {
       project_name[i] = c;
+    } else if (seen_colon == 2 && i >= 0) {
+      file_path[i] = c;
     }
     if (seen_colon == 1 && project_name[i] == 'N' && project_name[i-1] == 'E' && project_name[i-2] == 'K' &&
         project_name[i-3] == 'O' && project_name[i-4] == 'T' && project_name[i-5] == '$') {
         project_name[i-5] = '\0';
+        break;
+    }
+    if (seen_colon == 2 && file_path[i] == 'N' && file_path[i-1] == 'E' && file_path[i-2] == 'K' &&
+        file_path[i-3] == 'O' && file_path[i-4] == 'T' && file_path[i-5] == '$') {
+        file_path[i-5] = '\0';
         break;
     }
     i++;
@@ -242,6 +373,16 @@ void* main_process(void* socket) {
     if (!update(client_socket, project_name)) {
       write(client_socket, "$FFF$$TOKEN", strlen("$FFF$$TOKEN"));
       printf("Update failed...\n");
+    } else write(client_socket, "$***$$TOKEN", strlen("$***$$TOKEN"));
+  } else if (strcmp(token, "commit") == 0) {
+    if (!commit(client_socket, project_name)) {
+      write(client_socket, "$FFF$$TOKEN", strlen("$FFF$$TOKEN"));
+      printf("Commit failed...\n");
+    } else write(client_socket, "$***$$TOKEN", strlen("$***$$TOKEN"));
+  } else if (strcmp(token, "push") == 0) {
+    if (!push(client_socket, project_name)) {
+      write(client_socket, "$FFF$$TOKEN", strlen("$FFF$$TOKEN"));
+      printf("Commit failed...\n");
     } else write(client_socket, "$***$$TOKEN", strlen("$***$$TOKEN"));
   }
   // Else ifs after this

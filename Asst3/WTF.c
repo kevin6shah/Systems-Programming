@@ -1,21 +1,90 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <unistd.h>
-#include <netdb.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <dirent.h>
-#include <signal.h>
+#include "data.h"
 
 int client_socket;
 
 void handle() {
   printf("\n\nClient was interrupted... killing process now!\n");
   kill(getpid(), SIGTERM);
+}
+
+int dup_dir(char* old_path, char* dup_path, int check) {
+  if (check == 0) {
+    char path[255];
+    strcpy(path, "dup_");
+    strcat(path, old_path);
+    mkdir(path, 0700);
+    return dup_dir(old_path, path, 1);
+  }
+  DIR *directory = opendir(old_path);
+  if (directory == NULL) {
+    printf("Could not open directory\n");
+    return 0;
+  }
+  struct dirent *data;
+  while ((data = readdir(directory)) != NULL) {
+    if (data->d_type == 4 && strcmp(data->d_name, ".") != 0 && strcmp(data->d_name, "..") != 0) {
+      // Directory
+      char temp_path[255], actual_path[255];
+      strcpy(actual_path, old_path);
+      strcpy(temp_path, dup_path);
+      strcat(actual_path, "/");
+      strcat(temp_path, "/");
+      strcat(actual_path, data->d_name);
+      strcat(temp_path, data->d_name);
+
+      mkdir(temp_path, 0700);
+      dup_dir(actual_path, temp_path, 1);
+
+    } else if (data->d_type != 4) {
+      // File
+      char path[255];
+      char path2[255];
+      strcpy(path,old_path);
+      strcpy(path2,dup_path);
+      strcat(path, "/");
+      strcat(path2, "/");
+      strcat(path, data->d_name);
+      strcat(path2, data->d_name);
+      int fd = open(path, O_RDONLY);
+      int newfd = open(path2, O_WRONLY | O_CREAT, 0700);
+      struct stat stats;
+      stat(path, &stats);
+      char *buffer = malloc(stats.st_size);
+      read(fd, buffer, stats.st_size);
+      write(newfd, buffer, stats.st_size);
+    }
+  }
+}
+
+int send_file(char* client_path) {
+  int fd = open(client_path, O_RDONLY);
+  if (fd < 0) {
+    printf("Incorrect path entered\n");
+    return 0;
+  }
+
+  struct stat stats;
+  stat(client_path, &stats);
+  int buf_size = stats.st_size;
+  char size[255];
+  sprintf(size, "%d", buf_size);
+  write(client_socket, size, strlen(size));
+  write(client_socket, "$TOKEN", strlen("$TOKEN"));
+
+  char *buffer = malloc(buf_size + 1);
+  int n = read(fd, buffer, buf_size);
+  if (n < 0) {
+    printf("Error Reading\n");
+    return 0;
+  }
+  n = write(client_socket, buffer, buf_size);
+  if (n < 0) {
+    printf("Error Writing\n");
+    return 0;
+  }
+
+  write(client_socket, "$TOKEN", strlen("$TOKEN"));
+  return 1;
 }
 
 void configure(char* ip, char* host) {
@@ -133,6 +202,7 @@ int recieve() {
       ready = 0;
     }
   }
+
   return 1;
 }
 
@@ -179,6 +249,363 @@ int update(char* project_name) {
   }
   printf("Update was successful...\n");
   return 1;
+}
+
+int senddir(int client_socket, char* project_name) {
+  write(client_socket, "#", strlen("#"));
+  write(client_socket, project_name, strlen(project_name));
+  write(client_socket, "$TOKEN", strlen("$TOKEN"));
+  char server_path[255] = ".server_repo/";
+  strcat(server_path, project_name);
+  strcat(server_path, "/");
+
+  int recent_version = most_recent_version(server_path);
+  if (recent_version == 0) return 0;
+  char rec_version[255];
+  sprintf(rec_version, "%d", recent_version);
+  strcat(server_path, "version");
+  strcat(server_path, rec_version);
+  senddir_helper(client_socket, server_path, project_name);
+  printf("Directory sent successfully...\n");
+  return 1;
+}
+
+void senddir_helper(int client_socket, char* server_path, char* client_path) {
+  DIR *directory = opendir(server_path);
+  if (directory == NULL) {
+    printf("Could not open directory\n");
+    return;
+  }
+  struct dirent *data;
+  while ((data = readdir(directory)) != NULL) {
+    if (data->d_type == 4 && strcmp(data->d_name, ".") != 0 && strcmp(data->d_name, "..") != 0) {
+      // Directory
+      char temp_path[255];
+      strcpy(temp_path, client_path);
+      strcat(temp_path, "/");
+      strcat(temp_path, data->d_name);
+
+      char new_path[255];
+      strcpy(new_path, server_path);
+      strcat(new_path, "/");
+      strcat(new_path, data->d_name);
+
+      write(client_socket, "#", strlen("#"));
+      write(client_socket, temp_path, strlen(temp_path));
+      write(client_socket, "$TOKEN", strlen("$TOKEN"));
+
+      senddir_helper(client_socket, new_path, temp_path);
+    } else if (data->d_type != 4) {
+      // File
+      write(client_socket, "*", strlen("*"));
+      write(client_socket, client_path, strlen(client_path));
+      write(client_socket, "/", strlen("/"));
+      write(client_socket, data->d_name, strlen(data->d_name));
+      write(client_socket, "$TOKEN", strlen("$TOKEN"));
+
+      char new_path[250];
+      strcpy(new_path, server_path);
+      strcat(new_path, "/");
+      strcat(new_path, data->d_name);
+      if (!send_file(client_socket, new_path)) {
+        printf("Error: Could not send '%s' to the server\n", new_path);
+        write(client_socket, "$FFF$$TOKEN", strlen("$FFF$$TOKEN"));
+      }
+    }
+  }
+}
+
+int push(char* project_name) {
+  if (!connect_client()) {
+    return 0;
+  }
+  write(client_socket, "push:", strlen("push:"));
+  write(client_socket, project_name, strlen(project_name));
+  write(client_socket, "$TOKEN", strlen("$TOKEN"));
+  char vp[255];
+  char c;
+  int i = 0;
+  while (read(client_socket, &c, 1) > 0 && c != '$') {
+    vp[i] = c;
+    i++;
+  }
+  vp[i] = '\0';
+  int version = atoi(vp);
+  version++;
+
+  push_helper(project_name);
+  senddir();
+
+  printf("Push was successful...\n");
+  return 1;
+}
+
+void push_helper(char* project_name){
+  //duplicate the project Directory
+  dup_dir(project_name, NULL, 0);
+  //go to duplicate project directory and access the .Manifest file
+  char *dup_manifest_path = malloc(strlen(project_name) + strlen("/.Manifest") + strlen("dup_") + 1);
+  strcpy(dup_manifest_path, "dup_");
+  strcat(dup_manifest_path, project_name);
+  strcat(dup_manifest_path, "/.Manifest");
+  char *dup_project_name = malloc(strlen(project_name) + strlen("dup_") + 1);
+  strcpy(dup_project_name, "dup_");
+  strcat(dup_project_name, project_name);
+  char *commit_file_path = malloc(strlen(project_name) + strlen("/.Commit") + 1);
+  strcpy(commit_file_path, project_name);
+  strcat(commit_file_path, "/.Commit");
+  //hash that jawn
+  int version_num_manifest;
+  node **client_push = parse_manifest(dup_manifest_path, &version_num_manifest);
+  //compare the files from .Manifest and dup_directory, delete uneccessarry files (make_list)
+  node **current_status = createTable();
+  make_list(project_name, current_status); //not of the dup file but the actual one
+  int i;
+  for (i = 0; i < 150; i++){
+    if(current_status[i] == NULL) continue;
+    node* ptr = current_status[i];
+    for(;ptr != NULL; ptr = ptr->next){
+      node *temp = search_node(ptr, client_push);
+      if (strcmp(temp->filename, "does not exist")==0){ //file does not exist in the Manifest
+        char *stoopid = malloc (strlen(ptr->filepath) + 5);
+        strcpy(stoopid,"dup_");
+        strcat(stoopid, ptr->filepath);
+        remove(stoopid);
+      }
+    }
+  }
+
+  //go through the .Commit file, and check for U(pdated) files, and take fileversion and hashcode
+  node *head = parse_commit_file(commit_file_path);
+  printf("%s\n", commit_file_path);
+  node *list_ptr;
+  for(list_ptr = head; list_ptr != NULL; list_ptr = list_ptr->next){
+    node *temp = search_node(list_ptr, client_push);
+    printf("%d\n", list_ptr->version);
+    temp->version = list_ptr->version;
+    bzero(temp->code, strlen(temp->code));
+    strcpy(temp->code, gethash(list_ptr->filepath));
+
+  }
+  //update the .Manifest with it
+  remove(dup_manifest_path);
+  make_manifest(client_push, dup_manifest_path, ++version_num_manifest);
+
+  //finally update .Manifest version and replace the client one
+
+  //send entire directory to be copied into version(manifest#) project.
+
+}
+
+int commit_helper(char* project_name) {
+  int server_manifest_version, client_manifest_version;
+  node **hash_server = parse_manifest(".Manifest", &server_manifest_version);
+  remove(".Manifest");
+  char path[255];
+  strcpy(path, project_name);
+  strcat(path, "/.Manifest");
+  node **hash_client = parse_manifest(path, &client_manifest_version);
+
+  if (server_manifest_version != client_manifest_version){
+    printf("Versions do not match, please update local project\n");
+    return 0;
+  }
+  node **live_hash = createTable();
+  make_list(project_name, live_hash);
+  //create a linked list which stores all the commits needed
+  node *commit_list = malloc(sizeof(node));
+
+  char temp_commit_path[255];
+  strcpy(temp_commit_path, project_name);
+  strcat(temp_commit_path, "/.Commit");
+  int i;
+  int fd = open(temp_commit_path, O_WRONLY | O_CREAT, 0700);
+  if (fd < 0) {
+    printf("Error creating the commit file\n");
+    return 0;
+  }
+  for (i = 0; i < 150; i++){
+    if(hash_client[i] == NULL) continue;
+    node* ptr = hash_client[i];
+    for(;ptr != NULL; ptr = ptr->next){
+      //temp holds the node to the .Manifest of live hash
+      node* temp = search_node(ptr, live_hash);
+      node* server_node = search_node(ptr, hash_server);
+
+      if (strcmp(server_node->filename, "does not exist")==0){
+        //do nothing, acceptable
+        //file not in server yet, needs to be added
+        // |change|<tab>|filepath|<newline>  change is either A=add or D=delete
+        write(fd,"A",1);
+        write(fd,"\t",1);
+        write(fd, ptr->filepath, strlen(ptr->filepath));
+        write(fd,"\n",1);
+
+      } else if (strcmp(server_node->code, ptr->code)!=0 && server_node->version >= ptr->version){
+        //error lol
+        printf("client must synch with the repository before committing changes\n");
+        remove(".Commit");
+      }
+
+      if(strcmp("does not exist", temp->filename)==0){
+        //file does not exist in local project but exists in .Manifest huhuh
+        printf("file (%s) does not exist in the local project\n", ptr->filepath);
+      } else{
+          if(strcmp(ptr->code, temp->code) != 0){
+            //local file is different than file referenced in .manifest
+            //write  |change <tab> incremented version number <tab> filepath <tab> updated hashedcode <newline> |
+            int cversion = ptr->version + 1;
+            char* version_buffer = malloc(100);
+            sprintf(version_buffer, "%d", cversion);
+            write(fd,"U",1);
+            write(fd,"\t",1);
+            write(fd, version_buffer, strlen(version_buffer));
+            write(fd,"\t",1);
+            write(fd, ptr->filepath, strlen(ptr->filepath));
+            write(fd,"\n",1);
+          }
+        }
+      }
+    }
+      int j;
+      for (j = 0; j < 150; j++){
+        if(hash_server[j] == NULL) continue;
+        node* ptr = hash_server[i];
+        for(;ptr != NULL; ptr = ptr->next){
+          node* test = search_node(ptr, hash_client);
+          if(strcmp(test->filename, "does not exist") == 0){
+            //file exist in the server but not in client
+            //has to be deleted
+            write(fd,"D",1);
+            write(fd,"\t",1);
+            write(fd, ptr->filepath, strlen(ptr->filepath));
+            write(fd,"\n",1);
+          }
+        }
+      }
+    return 1;
+}
+
+int commit(char* project_name){
+  char temp_path[255];
+  strcpy(temp_path, project_name);
+  strcat(temp_path, "/.Update");
+  if (!connect_client()) {
+    return 0;
+  }
+  int tempfd = open(temp_path, O_RDONLY);
+  if (tempfd >= 0) return 0;
+  write(client_socket, "commit:", strlen("commit:"));
+  write(client_socket, project_name, strlen(project_name));
+  write(client_socket, "$TOKEN", strlen("$TOKEN"));
+  if (!recieve()) {
+    printf("There occured an error recieving the .Manifest from the server...\n");
+    return 0;
+  }
+
+  if (!commit_helper(project_name)) return 0;
+
+  write(client_socket, "*.server_repo/", strlen("*.server_repo/"));
+  write(client_socket, project_name, strlen(project_name));
+  write(client_socket, "/version", strlen("/version"));
+  char version[255];
+  char c;
+  while (read(client_socket, &c, 1) > 0 && c != '$') {
+    char str[2];
+    sprintf(str, "%c", c);
+    write(client_socket, str, strlen(str));
+  }
+  write(client_socket, "/.Commit", strlen("/.Commit"));
+  write(client_socket, "$TOKEN", strlen("$TOKEN"));
+  bzero(temp_path, 255);
+  strcpy(temp_path, project_name);
+  strcat(temp_path, "/.Commit");
+  if (send_file(temp_path)) {
+    printf("Commit succeeded!\n");
+    return 1;
+  }
+  return 0;
+}
+
+int add(char* project_name, char* file_old_path) {
+  int client_manifest_version;
+  char path[255];
+  strcpy(path, project_name);
+  strcat(path, "/.Manifest");
+  node **hash_client = parse_manifest(path, &client_manifest_version);
+
+  char* file_path = malloc(strlen(project_name) + strlen(file_old_path) + 2);
+  strcpy(file_path, project_name);
+  strcat(file_path, "/");
+  strcat(file_path, file_old_path);
+
+  node* result;
+  node* tmp = malloc(sizeof(node));
+  tmp->filepath = malloc(255);
+  strcpy(tmp->filepath, file_path);
+  tmp->filename = malloc(255);
+  strcpy(tmp->filename, get_name(file_path));
+  result = search_node(tmp, hash_client);
+
+  if (strcmp(result->filename, "does not exist") != 0) {
+    //Path exists on the manifest
+    strcpy(result->code, gethash(file_path));
+    printf("Warning: The file already exists...\n.Manifest has been updated with new hash\n");
+  } else {
+    //New path to add
+    node *temp = malloc(sizeof(node));
+    temp->version = 1;
+    temp->filename = malloc(strlen(get_name(file_path)) + 1);
+    strcpy(temp->filename, get_name(file_path));
+    temp->filepath = malloc(strlen(file_path) + 1);
+    strcpy(temp->filepath, file_path);
+    temp->code = malloc (SHA256_DIGEST_LENGTH*2);
+    if (gethash(file_path) == NULL) return 0;
+    strcpy(temp->code, gethash(file_path));
+    nodeInsert(temp, hash_client);
+  }
+  remove(path);
+  if (make_manifest(hash_client, path, client_manifest_version)) {
+    printf("Sucessfully added '%s'\n", file_old_path);
+    return 1;
+  }
+  return 0;
+}
+
+int remuuv(char* project_name, char* file_old_path){
+  int client_manifest_version;
+  char path[255];
+  strcpy(path, project_name);
+  strcat(path, "/.Manifest");
+  node **hash_client = parse_manifest(path, &client_manifest_version);
+
+  char* file_path = malloc(strlen(project_name) + strlen(file_old_path) + 2);
+  strcpy(file_path, project_name);
+  strcat(file_path, "/");
+  strcat(file_path, file_old_path);
+
+  node* result;
+  node* tmp = malloc(sizeof(node));
+  tmp->filepath = malloc(255);
+  strcpy(tmp->filepath, file_path);
+  tmp->filename = malloc(255);
+  strcpy(tmp->filename, get_name(file_path));
+  result = search_node(tmp, hash_client);
+
+  if (strcmp(result->filename, "does not exist") != 0) {
+    //Path exists on the manifest --> Remove it
+    hash_client[getkey(result->filename)] = delete(result->filepath,hash_client[getkey(result->filename)]);
+  } else {
+    //Path does not exist --> Error
+    printf("Error: Could not remove the file at '%s'\n", file_path);
+    return 0;
+  }
+  remove(path);
+  if (make_manifest(hash_client, path, client_manifest_version)) {
+    printf("Sucessfully removed '%s'\n", file_old_path);
+    return 1;
+  }
+  return 0;
 }
 
 int connect_client() {
@@ -286,6 +713,22 @@ int main(int argc, char** argv) {
   } else if (strcmp(argv[1], "update") == 0) {
     if (!update(argv[2])) {
       printf("Update failed...\n");
+    }
+  } else if (strcmp(argv[1], "add") == 0) {
+    if (!add(argv[2], argv[3])) {
+      printf("Add failed...\n");
+    }
+  } else if (strcmp(argv[1], "remove") == 0) {
+    if (!remuuv(argv[2], argv[3])) {
+      printf("Remove failed...\n");
+    }
+  } else if (strcmp(argv[1], "commit") == 0) {
+    if (!commit(argv[2])) {
+      printf("Commit failed...\n");
+    }
+  } else if (strcmp(argv[1], "push") == 0) {
+    if (!push(argv[2])) {
+      printf("Push failed...\n");
     }
   }
 
