@@ -6,6 +6,7 @@ int send_file(int client_socket, char* server_path) {
   int fd = open(server_path, O_RDONLY);
   if (fd < 0) {
     printf("Incorrect path entered\n");
+    close(fd);
     return 0;
   }
 
@@ -30,6 +31,7 @@ int send_file(int client_socket, char* server_path) {
   }
 
   write(client_socket, "$TOKEN", strlen("$TOKEN"));
+  close(fd);
   return 1;
 }
 
@@ -99,6 +101,7 @@ int recieve(int client_socket) {
         fd = open(token+1, O_WRONLY | O_CREAT, 0700);
         if (fd < 0) {
           printf("Error trying to make '%s' file\n", token+1);
+          close(fd);
           return 0;
         }
         size = 1;
@@ -111,6 +114,7 @@ int recieve(int client_socket) {
       ready = 0;
     }
   }
+  close(fd);
   return 1;
 }
 
@@ -152,7 +156,7 @@ void senddir_helper(int client_socket, char* server_path, char* client_path) {
       strcat(new_path, "/");
       strcat(new_path, data->d_name);
       if (!send_file(client_socket, new_path)) {
-        printf("Error: Could not send '%s' to the server\n", new_path);
+        printf("Error: Could not send '%s' to the client\n", new_path);
         write(client_socket, "$FFF$$TOKEN", strlen("$FFF$$TOKEN"));
       }
     }
@@ -206,13 +210,11 @@ int senddir(int client_socket, char* project_name) {
   strcat(server_path, "/");
 
   int recent_version = most_recent_version(server_path);
-  if (recent_version == 0) return 0;
   char rec_version[255];
   sprintf(rec_version, "%d", recent_version);
   strcat(server_path, "version");
   strcat(server_path, rec_version);
   senddir_helper(client_socket, server_path, project_name);
-  printf("Checkout succeeded...\n");
   return 1;
 }
 
@@ -222,7 +224,7 @@ int checkout(int client_socket, char* project_name) {
   }
 
   if (!senddir(client_socket, project_name)) return 0;
-
+  printf("Checkout succeeded...\n");
   return 1;
 }
 
@@ -235,17 +237,19 @@ int create(int client_socket, char* project_name) {
   }
   strcat(path, project_name);
   mkdir(path, 0700);
-  strcat(path, "/version1");
+  strcat(path, "/version0");
   mkdir(path, 0700);
   strcat(path, "/.Manifest");
   int fd = open(path, O_WRONLY | O_CREAT, 0700);
   if (fd < 0) {
     printf("Could not create the Manifest file...\n");
+    close(fd);
     return 0;
   }
   write(fd, "0\n", strlen("0\n"));
   close(fd);
   if (!senddir(client_socket, project_name)) return 0;
+  printf("Create was successful\n");
   return 1;
 }
 
@@ -261,7 +265,6 @@ int update(int client_socket, char* project_name) {
   strcat(new_path, project_name);
   strcat(new_path, "/");
   int recent_version = most_recent_version(new_path);
-  if (recent_version == 0) return 0;
   char version[255];
   sprintf(version, "%d", recent_version);
   strcat(new_path, "version");
@@ -286,7 +289,9 @@ int push(int client_socket, char* project_name) {
   sprintf(vp, "%d", version);
   write(client_socket, vp, strlen(vp));
   write(client_socket, "$", 1);
-  
+  if (!recieve(client_socket)) return 0;
+  printf("Push was successful...\n");
+  return 1;
 }
 
 int commit(int client_socket, char* project_name) {
@@ -301,7 +306,6 @@ int commit(int client_socket, char* project_name) {
   strcat(new_path, project_name);
   strcat(new_path, "/");
   int recent_version = most_recent_version(new_path);
-  if (recent_version == 0) return 0;
   char version[255];
   sprintf(version, "%d", recent_version);
   strcat(new_path, "version");

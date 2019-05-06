@@ -18,6 +18,7 @@ node* parse_commit_file(char* update_path){
   int fd = open(update_path, O_RDONLY);
   if (fd < 0) {
     printf("Can't open the manifest file\n");
+    close(fd);
     return 0;
   }
 
@@ -50,6 +51,7 @@ while(not_end_of_file){
     break;
   }
   node* hashnode = malloc(sizeof(node));
+  hashnode = NULL;
 
   //now we parse through each line.
   //reminder: update path looks like U tab version_num tab filepath
@@ -91,7 +93,7 @@ while(not_end_of_file){
   head = linked_list_insert(head, hashnode);
 
 }
-
+close(fd);
 return head;
 }
 
@@ -99,6 +101,7 @@ char* gethash(char* filepath){
     int fd = open(filepath, O_RDONLY);
   if (fd < 0) {
     printf("Incorrect Path Given... exiting ...\n");
+    close(fd);
     return NULL;
   }
 
@@ -117,6 +120,7 @@ char* gethash(char* filepath){
    sprintf((char*)(hash+(i*2)), "%02x", tmphash[i]);
   }
 
+  close(fd);
   return hash;
 }
 
@@ -205,6 +209,7 @@ node** parse_manifest(char* manifest_path, int* version_num){
  int fd = open(manifest_path, O_RDONLY);
  if (fd < 0) {
    printf("Can't open the manifest file\n");
+   close(fd);
    return 0;
  }
 
@@ -278,7 +283,7 @@ while(not_end_of_file){
  nodeInsert(hashnode, hash_client);
 
 }
-
+close(fd);
 return hash_client;
 }
 
@@ -297,6 +302,7 @@ int make_manifest(node** HashTable, char* path, int version) {
   int fd = open(path, O_WRONLY | O_CREAT, 0700);
   if (fd < 0) {
     printf("Could not create Manifest\n");
+    close(fd);
     return 0;
   }
   char v_num[250];
@@ -318,6 +324,7 @@ int make_manifest(node** HashTable, char* path, int version) {
       write(fd, "\n", 1);
     }
   }
+  close(fd);
   return 1;
 }
 

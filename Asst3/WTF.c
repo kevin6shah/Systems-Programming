@@ -52,6 +52,8 @@ int dup_dir(char* old_path, char* dup_path, int check) {
       char *buffer = malloc(stats.st_size);
       read(fd, buffer, stats.st_size);
       write(newfd, buffer, stats.st_size);
+      close(fd);
+      close(newfd);
     }
   }
 }
@@ -60,6 +62,7 @@ int send_file(char* client_path) {
   int fd = open(client_path, O_RDONLY);
   if (fd < 0) {
     printf("Incorrect path entered\n");
+    close(fd);
     return 0;
   }
 
@@ -75,37 +78,43 @@ int send_file(char* client_path) {
   int n = read(fd, buffer, buf_size);
   if (n < 0) {
     printf("Error Reading\n");
+    close(fd);
     return 0;
   }
   n = write(client_socket, buffer, buf_size);
   if (n < 0) {
     printf("Error Writing\n");
+    close(fd);
     return 0;
   }
 
   write(client_socket, "$TOKEN", strlen("$TOKEN"));
+  close(fd);
   return 1;
 }
 
-void configure(char* ip, char* host) {
+int configure(char* ip, char* host) {
   int fd;
   if ((fd = open("./.configure", O_RDONLY)) >= 0) {
     // Already Configured
-    close(fd);
     printf("IP Address and Host are already configured!\n");
-    return;
+    close(fd);
+    return 0;
   } else {
     // Not configured
     fd = open("./.configure", O_WRONLY | O_CREAT, 0700);
     if (fd < 0) {
       printf("Could not create a config file!\n");
-      return;
+      close(fd);
+      return 0;
     }
     write(fd, ip, strlen(ip));
     write(fd, "\t", 1);
     write(fd, host, strlen(host));
     printf(".configure file was created sucessfully!\n");
   }
+  close(fd);
+  return 1;
 }
 
 int exists(char* path, char* project_name) {
@@ -190,6 +199,7 @@ int recieve() {
         fd = open(token+1, O_WRONLY | O_CREAT, 0700);
         if (fd < 0) {
           printf("Error trying to make '%s' file\n", token+1);
+          close(fd);
           return 0;
         }
         size = 1;
@@ -251,27 +261,38 @@ int update(char* project_name) {
   return 1;
 }
 
-int senddir(int client_socket, char* project_name) {
-  write(client_socket, "#", strlen("#"));
-  write(client_socket, project_name, strlen(project_name));
-  write(client_socket, "$TOKEN", strlen("$TOKEN"));
-  char server_path[255] = ".server_repo/";
-  strcat(server_path, project_name);
-  strcat(server_path, "/");
+int RMDIR(char* path) {
+  DIR *directory = opendir(path);
+  if (directory == NULL) {
+    printf("Could not open directory\n");
+    return 0;
+  }
+  struct dirent *data;
+  while ((data = readdir(directory)) != NULL) {
+    if (data->d_type == 4 && strcmp(data->d_name, ".") != 0 && strcmp(data->d_name, "..") != 0) {
+      // Directory
+      char temp_path[255];
+      strcpy(temp_path, path);
+      strcat(temp_path, "/");
+      strcat(temp_path, data->d_name);
+      RMDIR(temp_path);
+      rmdir(temp_path);
 
-  int recent_version = most_recent_version(server_path);
-  if (recent_version == 0) return 0;
-  char rec_version[255];
-  sprintf(rec_version, "%d", recent_version);
-  strcat(server_path, "version");
-  strcat(server_path, rec_version);
-  senddir_helper(client_socket, server_path, project_name);
-  printf("Directory sent successfully...\n");
+    } else if (data->d_type != 4) {
+      // File
+
+      char new_path[250];
+      strcpy(new_path, path);
+      strcat(new_path, "/");
+      strcat(new_path, data->d_name);
+      remove(new_path);
+    }
+  }
   return 1;
 }
 
-void senddir_helper(int client_socket, char* server_path, char* client_path) {
-  DIR *directory = opendir(server_path);
+void senddir_helper(char* client_path, char* server_path) {
+  DIR *directory = opendir(client_path);
   if (directory == NULL) {
     printf("Could not open directory\n");
     return;
@@ -291,23 +312,23 @@ void senddir_helper(int client_socket, char* server_path, char* client_path) {
       strcat(new_path, data->d_name);
 
       write(client_socket, "#", strlen("#"));
-      write(client_socket, temp_path, strlen(temp_path));
+      write(client_socket, new_path, strlen(new_path));
       write(client_socket, "$TOKEN", strlen("$TOKEN"));
 
-      senddir_helper(client_socket, new_path, temp_path);
+      senddir_helper(temp_path, new_path);
     } else if (data->d_type != 4) {
       // File
       write(client_socket, "*", strlen("*"));
-      write(client_socket, client_path, strlen(client_path));
+      write(client_socket, server_path, strlen(server_path));
       write(client_socket, "/", strlen("/"));
       write(client_socket, data->d_name, strlen(data->d_name));
       write(client_socket, "$TOKEN", strlen("$TOKEN"));
 
       char new_path[250];
-      strcpy(new_path, server_path);
+      strcpy(new_path, client_path);
       strcat(new_path, "/");
       strcat(new_path, data->d_name);
-      if (!send_file(client_socket, new_path)) {
+      if (!send_file(new_path)) {
         printf("Error: Could not send '%s' to the server\n", new_path);
         write(client_socket, "$FFF$$TOKEN", strlen("$FFF$$TOKEN"));
       }
@@ -315,32 +336,21 @@ void senddir_helper(int client_socket, char* server_path, char* client_path) {
   }
 }
 
-int push(char* project_name) {
-  if (!connect_client()) {
-    return 0;
-  }
-  write(client_socket, "push:", strlen("push:"));
-  write(client_socket, project_name, strlen(project_name));
+int senddir(char* project_name, char* version) {
+  write(client_socket, "#", strlen("#"));
+  char server_path[255] = ".server_repo/";
+  strcat(server_path, project_name+4);
+  strcat(server_path, "/version");
+  strcat(server_path, version);
+  write(client_socket, server_path, strlen(server_path));
   write(client_socket, "$TOKEN", strlen("$TOKEN"));
-  char vp[255];
-  char c;
-  int i = 0;
-  while (read(client_socket, &c, 1) > 0 && c != '$') {
-    vp[i] = c;
-    i++;
-  }
-  vp[i] = '\0';
-  int version = atoi(vp);
-  version++;
-
-  push_helper(project_name);
-  senddir();
-
-  printf("Push was successful...\n");
+  senddir_helper(project_name, server_path);
+  write(client_socket, "$***$$TOKEN", strlen("$***$$TOKEN"));
+  printf("Directory sent successfully...\n");
   return 1;
 }
 
-void push_helper(char* project_name){
+int push_helper(char* project_name){
   //duplicate the project Directory
   dup_dir(project_name, NULL, 0);
   //go to duplicate project directory and access the .Manifest file
@@ -375,13 +385,12 @@ void push_helper(char* project_name){
     }
   }
 
+
   //go through the .Commit file, and check for U(pdated) files, and take fileversion and hashcode
   node *head = parse_commit_file(commit_file_path);
-  printf("%s\n", commit_file_path);
   node *list_ptr;
   for(list_ptr = head; list_ptr != NULL; list_ptr = list_ptr->next){
     node *temp = search_node(list_ptr, client_push);
-    printf("%d\n", list_ptr->version);
     temp->version = list_ptr->version;
     bzero(temp->code, strlen(temp->code));
     strcpy(temp->code, gethash(list_ptr->filepath));
@@ -392,9 +401,41 @@ void push_helper(char* project_name){
   make_manifest(client_push, dup_manifest_path, ++version_num_manifest);
 
   //finally update .Manifest version and replace the client one
-
+  return 1;
   //send entire directory to be copied into version(manifest#) project.
 
+}
+
+int push(char* project_name) {
+  if (!connect_client()) {
+    return 0;
+  }
+  write(client_socket, "push:", strlen("push:"));
+  write(client_socket, project_name, strlen(project_name));
+  write(client_socket, "$TOKEN", strlen("$TOKEN"));
+  char vp[255];
+  char c;
+  int i = 0;
+  while (read(client_socket, &c, 1) > 0 && c != '$') {
+    vp[i] = c;
+    i++;
+  }
+  vp[i] = '\0';
+  int version = atoi(vp);
+  version++;
+  bzero(vp, i);
+  sprintf(vp, "%d", version);
+
+  push_helper(project_name);
+  char path[255] = "dup_";
+  strcat(path, project_name);
+  senddir(path, vp);
+  RMDIR(project_name);
+  rmdir(project_name);
+  printf("path to be renamed: %s, name of path: %s", path, project_name);
+  rename(path, project_name);
+  printf("Push was successful...\n");
+  return 1;
 }
 
 int commit_helper(char* project_name) {
@@ -422,6 +463,7 @@ int commit_helper(char* project_name) {
   int fd = open(temp_commit_path, O_WRONLY | O_CREAT, 0700);
   if (fd < 0) {
     printf("Error creating the commit file\n");
+    close(fd);
     return 0;
   }
   for (i = 0; i < 150; i++){
@@ -483,6 +525,7 @@ int commit_helper(char* project_name) {
           }
         }
       }
+      close(fd);
     return 1;
 }
 
@@ -494,10 +537,15 @@ int commit(char* project_name){
     return 0;
   }
   int tempfd = open(temp_path, O_RDONLY);
-  if (tempfd >= 0) return 0;
+  if (tempfd >= 0) {
+    close(tempfd);
+    return 0;
+  }
+  close(tempfd);
   write(client_socket, "commit:", strlen("commit:"));
   write(client_socket, project_name, strlen(project_name));
   write(client_socket, "$TOKEN", strlen("$TOKEN"));
+
   if (!recieve()) {
     printf("There occured an error recieving the .Manifest from the server...\n");
     return 0;
@@ -612,6 +660,7 @@ int connect_client() {
   int fd = open("./.configure", O_RDONLY);
   if (fd < 0) {
     printf("The client is not configured... Please try configuring first!\n");
+    close(fd);
     return 0;
   }
   // Gets the IP and Host from the Config file
@@ -627,6 +676,7 @@ int connect_client() {
   ip[i] = '\0';
   if (dot == 0 || valid == 0 || ip == NULL) {
     printf(".configure file is invalid/corrupted!\n");
+    close(fd);
     return 0;
   }
 
@@ -634,6 +684,7 @@ int connect_client() {
   int n = read(fd, host, 250);
   if (n < 0) {
     printf("Host is Incorrect!\n");
+    close(fd);
     return 0;
   }
   valid = 1;
@@ -645,12 +696,14 @@ int connect_client() {
   }
   if (host == NULL || valid == 0) {
     printf("Host is Incorrect!\n");
+    close(fd);
     return 0;
   }
 
   struct hostent *server = gethostbyname(ip);
   if (server < 0) {
     printf("Error: Given IP Address is invalid\n");
+    close(fd);
     return 0;
   }
 
@@ -675,6 +728,7 @@ int connect_client() {
       break;
     }
   } while (1);
+  close(fd);
   return 1;
 }
 
@@ -700,33 +754,64 @@ int main(int argc, char** argv) {
   signal(SIGINT,handle);
 
   if (strcmp(argv[1], "configure") == 0) {
+    if (argc != 4) {
+      printf("Configure failed...\n");
+      return 0;
+    }
     configure(argv[2], argv[3]);
-    return 0;
   } else if (strcmp(argv[1], "checkout") == 0) {
+    if (argc != 3) {
+      printf("Checkout failed...\n");
+      return 0;
+    }
     if (!checkout(argv[2])) {
       printf("Checkout failed...\n");
     }
   } else if (strcmp(argv[1], "create") == 0) {
+    if (argc != 3) {
+      printf("Create failed...\n");
+      return 0;
+    }
     if (!create(argv[2])) {
       printf("Create failed...\n");
     }
   } else if (strcmp(argv[1], "update") == 0) {
+    if (argc != 3) {
+      printf("Update failed...\n");
+      return 0;
+    }
     if (!update(argv[2])) {
       printf("Update failed...\n");
     }
   } else if (strcmp(argv[1], "add") == 0) {
+    if (argc != 4) {
+      printf("Add failed...\n");
+      return 0;
+    }
     if (!add(argv[2], argv[3])) {
       printf("Add failed...\n");
     }
   } else if (strcmp(argv[1], "remove") == 0) {
+    if (argc != 4) {
+      printf("Remove failed...\n");
+      return 0;
+    }
     if (!remuuv(argv[2], argv[3])) {
       printf("Remove failed...\n");
     }
   } else if (strcmp(argv[1], "commit") == 0) {
+    if (argc != 3) {
+      printf("Commit failed...\n");
+      return 0;
+    }
     if (!commit(argv[2])) {
       printf("Commit failed...\n");
     }
   } else if (strcmp(argv[1], "push") == 0) {
+    if (argc != 3) {
+      printf("Push failed...\n");
+      return 0;
+    }
     if (!push(argv[2])) {
       printf("Push failed...\n");
     }
