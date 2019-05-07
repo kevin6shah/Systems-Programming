@@ -241,6 +241,7 @@ int upgrade(int client_socket, char* project_name) {
   strcat(new_path, project_name);
   strcat(new_path, "/");
   int recent_version = most_recent_version(new_path);
+  if (recent_version < 0) return 0;
   char version[255];
   sprintf(version, "%d", recent_version);
   strcat(new_path, "version");
@@ -277,6 +278,7 @@ int upgrade(int client_socket, char* project_name) {
     char server_path[255] = ".server_repo/", vp[255];
     strcat(server_path, project_name);
     int version = most_recent_version(server_path);
+    if (version < 0) return 0;
     sprintf(vp, "%d", version);
     strcat(server_path, "/version");
     strcat(server_path, vp);
@@ -326,6 +328,7 @@ int currentversion(int client_socket, char* project_name) {
   strcat(new_path, project_name);
   strcat(new_path, "/");
   int recent_version = most_recent_version(new_path);
+  if (recent_version < 0) return 0;
   char version[255];
   sprintf(version, "%d", recent_version);
   strcat(new_path, "version");
@@ -353,6 +356,7 @@ int update(int client_socket, char* project_name) {
   strcat(new_path, project_name);
   strcat(new_path, "/");
   int recent_version = most_recent_version(new_path);
+  if (recent_version < 0) return 0;
   char version[255];
   sprintf(version, "%d", recent_version);
   strcat(new_path, "version");
@@ -374,6 +378,7 @@ int push(int client_socket, char* project_name) {
   strcat(new_path, project_name);
   strcat(new_path, "/");
   int version = most_recent_version(new_path);
+  if (version < 0) return 0;
   char vp[255];
   sprintf(vp, "%d", version);
   write(client_socket, vp, strlen(vp));
@@ -395,6 +400,7 @@ int commit(int client_socket, char* project_name) {
   strcat(new_path, project_name);
   strcat(new_path, "/");
   int recent_version = most_recent_version(new_path);
+  if (recent_version < 0) return 0;
   char version[255];
   sprintf(version, "%d", recent_version);
   strcat(new_path, "version");
@@ -412,6 +418,52 @@ int commit(int client_socket, char* project_name) {
     return 0;
   }
   printf("Commit Succeeded\n");
+  return 1;
+}
+
+int rollback(int client_socket, char* project_name, char* version_num) {
+  if (!exists("./", ".server_repo") || !exists(".server_repo/", project_name)) {
+    write(client_socket, "$FFF$", strlen("$FFF$"));
+    return 0;
+  }
+  char new_path[255] = ".server_repo/";
+  strcat(new_path, project_name);
+  strcat(new_path, "/");
+  int version = most_recent_version(new_path);
+  if (version < 0) {
+    write(client_socket, "$FFF$", strlen("$FFF$"));
+    return 0;
+  }
+  char vp[255] = "version";
+  strcat(vp, version_num);
+  if (!exists(new_path, vp)) {
+    write(client_socket, "$FFF$", strlen("$FFF$"));
+    return 0;
+  }
+  int i = atoi(version_num);
+  if (i == version) {
+    printf("Rollback was inputted the current version...\n");
+    write(client_socket, "$FFF$", strlen("$FFF$"));
+    return 0;
+  }
+  i++;
+  char temp[10];
+  char path[255];
+  for (;i <= version; i++) {
+    bzero(temp, 10);
+    bzero(path, 255);
+    strcpy(path, new_path);
+    strcat(path, "version");
+    sprintf(temp, "%d", i);
+    strcat(path, temp);
+    if (!RMDIR(path)) {
+      write(client_socket, "$FFF$", strlen("$FFF$"));
+      return 0;
+    }
+    rmdir(path);
+  }
+
+  printf("Rollback was successful...\n");
   return 1;
 }
 
@@ -486,6 +538,11 @@ void* main_process(void* socket) {
     if (!currentversion(client_socket, project_name)) {
       write(client_socket, "$FFF$", strlen("$FFF$"));
       printf("Current-Version failed...\n");
+    }
+  } else if (strcmp(token, "rollback") == 0) {
+    if (!rollback(client_socket, project_name, file_path)) {
+      write(client_socket, "$FFF$", strlen("$FFF$"));
+      printf("Rollback failed...\n");
     }
   }
   // Else ifs after this

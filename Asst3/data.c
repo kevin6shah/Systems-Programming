@@ -1,5 +1,35 @@
 #include "data.h"
 
+int RMDIR(char* path) {
+  DIR *directory = opendir(path);
+  if (directory == NULL) {
+    printf("Could not open directory\n");
+    return 0;
+  }
+  struct dirent *data;
+  while ((data = readdir(directory)) != NULL) {
+    if (data->d_type == 4 && strcmp(data->d_name, ".") != 0 && strcmp(data->d_name, "..") != 0) {
+      // Directory
+      char temp_path[255];
+      strcpy(temp_path, path);
+      strcat(temp_path, "/");
+      strcat(temp_path, data->d_name);
+      RMDIR(temp_path);
+      rmdir(temp_path);
+
+    } else if (data->d_type != 4) {
+      // File
+
+      char new_path[250];
+      strcpy(new_path, path);
+      strcat(new_path, "/");
+      strcat(new_path, data->d_name);
+      remove(new_path);
+    }
+  }
+  return 1;
+}
+
 node* linked_list_insert(node *head, node *to_be_inserted, int updates){
     if(updates == 1){
       return to_be_inserted;

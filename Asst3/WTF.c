@@ -246,6 +246,132 @@ int create(char* project_name) {
   return 1;
 }
 
+int update_helper(char* project_name){
+  node** live_hash = createTable();
+  make_list(project_name, live_hash);
+  int server_manifest_version, client_manifest_version;
+  node **hash_server = parse_manifest(".Manifest", &server_manifest_version);
+  char path[255];
+  strcpy(path, project_name);
+  strcat(path, "/.Manifest");
+  node **hash_client = parse_manifest(path, &client_manifest_version);
+  char update_path[255];
+  strcpy(update_path, project_name);
+  strcat(update_path, "/.Update");
+
+  int fd = open(update_path, O_WRONLY | O_CREAT, 0700);
+  if (fd < 0) {
+    printf("Error creating the manifest file\n");
+    close(fd);
+    return 0;
+  }
+  int i;
+
+  int error = 0;
+  for (i = 0; i < 150; i++){
+    if(hash_client[i] == NULL) continue;
+    node* file_client = hash_client[i];
+    for(;file_client != NULL; file_client = file_client->next){
+      int completed_if_else_command = 0;
+      node* file_server = search_node(file_client, hash_server);
+      node *ptr = search_node(file_client, live_hash);
+      if(strcmp(ptr->filename, "does not exist") ==0){
+        printf("file (%s) has been removed from the local project\n", file_client->filepath);
+      }
+
+      if (strcmp(file_server->filename, "does not exist") ==0){
+        //in client but not in server
+        if (server_manifest_version == client_manifest_version){
+          //upload
+          completed_if_else_command = 1;
+          printf("U:\t%s\n", file_client->filepath);
+        } else{
+          //delete
+          completed_if_else_command = 1;
+          printf("D:\t%s\n", file_client->filepath);
+          write(fd, "D\t", strlen("D\t"));
+          char* version_num_buff = malloc(10);
+          int tmp = file_client->version;
+          sprintf(version_num_buff,"%d", tmp);
+          write(fd, version_num_buff, sizeof(version_num_buff));
+          write(fd, "\t", 1);
+          write(fd, file_client->filename, strlen(file_client->filename));
+          write(fd, "\t", 1);
+          write(fd, file_client->filepath, strlen(file_client->filepath));
+          write(fd, "\t", 1);
+          write(fd, file_client->code, strlen(file_client->code));
+          write(fd, "\n", 1);
+
+        }
+      } else if(strcmp(file_server->filename, "does not exist") !=0){
+          //file exists in both the server and client manifests
+         if(server_manifest_version == client_manifest_version && strcmp(file_server->code, ptr->code) != 0) {
+          //upload
+          completed_if_else_command = 1;
+          printf("U:\t%s\n", file_client->filepath);
+        } else if(server_manifest_version != client_manifest_version && file_client->version != file_server->version){
+            //modify
+            completed_if_else_command = 1;
+            printf("M:\t%s\n", file_client->filepath);
+            write(fd, "M\t", strlen("M\t"));
+            char* version_num_buff = malloc(10);
+            sprintf(version_num_buff,"%d", file_server->version);
+            write(fd, version_num_buff, sizeof(version_num_buff));
+            write(fd, "\t", 1);
+            write(fd, file_client->filename, strlen(file_client->filename));
+            write(fd, "\t", 1);
+            write(fd, file_client->filepath, strlen(file_client->filepath));
+            write(fd, "\t", 1);
+            write(fd, file_server->code, strlen(file_server->code));
+            write(fd, "\n", 1);
+        } else if(server_manifest_version == client_manifest_version && file_client->version == file_server->version && strcmp(file_client->code, file_server->code)==0){
+            completed_if_else_command = 1;
+        }
+
+      } else if (!completed_if_else_command){
+        error = 1;
+        printf("conflicting files :\t%s\n", file_client->filepath);
+
+
+      }
+    }
+  }
+
+
+  //now to see what files from the server are not in the client.
+
+    int j;
+    for (j = 0; j < 150; j++){
+      if(hash_server[j] == NULL) continue;
+      node* ptr = hash_server[i];
+      for(;ptr != NULL; ptr = ptr->next){
+        node* test = search_node(ptr, hash_client);
+        if(strcmp(test->filename, "does not exist") == 0){
+          printf("A:\t%s\n", ptr->filepath);
+          write(fd, "A\t", strlen("A\t"));
+          char* version_num_buff = malloc(10);
+          sprintf(version_num_buff,"%d", ptr->version);
+          write(fd, version_num_buff, sizeof(version_num_buff));
+          write(fd, "\t", 1);
+          write(fd, ptr->filename, strlen(ptr->filename));
+          write(fd, "\t", 1);
+          write(fd, ptr->filepath, strlen(ptr->filepath));
+          write(fd, "\t", 1);
+          write(fd, ptr->code, strlen(ptr->code));
+          write(fd, "\n", 1);
+
+        }
+      }
+    }
+    if (error){
+      remove(update_path);
+      close(fd);
+      return 0;
+    }
+    close(fd);
+    return 1;
+}
+
 int update(char* project_name) {
   if (!connect_client()) {
     return 0;
@@ -257,6 +383,14 @@ int update(char* project_name) {
     printf("There occured an error recieving the .Manifest from the server...\n");
     return 0;
   }
+
+  if (!update_helper(project_name)) {
+   printf("Update failed...\n");
+   return 0;
+  }
+
+  remove(".Manifest");
+
   printf("Update was successful...\n");
   return 1;
 }
@@ -274,7 +408,7 @@ int upgrade_helper(char* project_name) {
     return 0;
   }
   close(fd);
-    
+
     int pd = open(".Manifest", O_RDONLY);
     if (pd < 0) {
         printf("cannot open server .Manifest file\n");
@@ -282,7 +416,7 @@ int upgrade_helper(char* project_name) {
         return 0;
     }
     close(pd);
-    
+
 
 
 
@@ -293,11 +427,12 @@ int upgrade_helper(char* project_name) {
   //j holds server's manifest version
   node** server_manifest= parse_manifest(".Manifest", &j);
   node **manifest_data = parse_manifest(manifest_path, &n);
+  remove(".Manifest");
 
   //Parse through .Update file, create linked list of operations
 
   node *head = parse_update_file(update_path);
-    
+
 
   //traverse .Update and implement changes
   //get mostrecentversionnum of project
@@ -342,7 +477,6 @@ int upgrade_helper(char* project_name) {
   write(client_socket, "$***$$TOKEN", strlen("$***$$TOKEN"));
   remove(manifest_path);
   make_manifest(manifest_data, manifest_path, j);
-  //remove(".Manifest");
   return 1;
 }
 
@@ -385,33 +519,21 @@ int currentversion(char* project_name){
   return 1;
 }
 
-int RMDIR(char* path) {
-  DIR *directory = opendir(path);
-  if (directory == NULL) {
-    printf("Could not open directory\n");
+int rollback(char* project_name, char* version_num){
+  if (!connect_client()) {
     return 0;
   }
-  struct dirent *data;
-  while ((data = readdir(directory)) != NULL) {
-    if (data->d_type == 4 && strcmp(data->d_name, ".") != 0 && strcmp(data->d_name, "..") != 0) {
-      // Directory
-      char temp_path[255];
-      strcpy(temp_path, path);
-      strcat(temp_path, "/");
-      strcat(temp_path, data->d_name);
-      RMDIR(temp_path);
-      rmdir(temp_path);
+  write(client_socket, "rollback:", strlen("rollback:"));
+  write(client_socket, project_name, strlen(project_name));
+  write(client_socket, ":", 1);
+  write(client_socket, version_num, strlen(version_num));
+  write(client_socket, "$TOKEN", strlen("$TOKEN"));
 
-    } else if (data->d_type != 4) {
-      // File
-
-      char new_path[250];
-      strcpy(new_path, path);
-      strcat(new_path, "/");
-      strcat(new_path, data->d_name);
-      remove(new_path);
-    }
-  }
+  char status[255];
+  int n = read(client_socket, status, 255);
+  status[5] = '\0';
+  if (strcmp(status, "$FFF$") == 0) return 0;
+  printf("Rollback was successful...\n");
   return 1;
 }
 
@@ -856,22 +978,26 @@ int connect_client() {
   return 1;
 }
 
+void usage(char *first_arg) {
+  printf("Usage:\t%s configure <IP Address> <Port>\n", first_arg);
+  printf("\t%s checkout <Project Name>\n", first_arg);
+  printf("\t%s update <Project Name>\n", first_arg);
+  printf("\t%s upgrade <Project Name>\n", first_arg);
+  printf("\t%s commit <Project Name>\n", first_arg);
+  printf("\t%s push <Project Name>\n", first_arg);
+  printf("\t%s create <Project Name>\n", first_arg);
+  printf("\t%s destroy <Project Name>\n", first_arg);
+  printf("\t%s add <Project Name> <Filename>\n", first_arg);
+  printf("\t%s remove <Project Name> <Filename>\n", first_arg);
+  printf("\t%s currentversion <Project Name>\n", first_arg);
+  printf("\t%s history <Project Name>\n", first_arg);
+  printf("\t%s rollback <Project Name> <Version>\n", first_arg);
+}
+
 int main(int argc, char** argv) {
 
   if (argc != 3 && argc != 4) {
-    printf("Usage:\t%s configure <IP Address> <Port>\n", argv[0]);
-    printf("\t%s checkout <Project Name>\n", argv[0]);
-    printf("\t%s update <Project Name>\n", argv[0]);
-    printf("\t%s upgrade <Project Name>\n", argv[0]);
-    printf("\t%s commit <Project Name>\n", argv[0]);
-    printf("\t%s push <Project Name>\n", argv[0]);
-    printf("\t%s create <Project Name>\n", argv[0]);
-    printf("\t%s destroy <Project Name>\n", argv[0]);
-    printf("\t%s add <Project Name> <Filename>\n", argv[0]);
-    printf("\t%s remove <Project Name> <Filename>\n", argv[0]);
-    printf("\t%s currentversion <Project Name>\n", argv[0]);
-    printf("\t%s history <Project Name>\n", argv[0]);
-    printf("\t%s rollback <Project Name> <Version>\n", argv[0]);
+    usage(argv[0]);
     return 0;
   }
 
@@ -879,13 +1005,13 @@ int main(int argc, char** argv) {
 
   if (strcmp(argv[1], "configure") == 0) {
     if (argc != 4) {
-      printf("Incorrect usage...\n");
+      usage(argv[0]);
       return 0;
     }
     configure(argv[2], argv[3]);
   } else if (strcmp(argv[1], "checkout") == 0) {
     if (argc != 3) {
-      printf("Incorrect usage...\n");
+      usage(argv[0]);
       return 0;
     }
     if (!checkout(argv[2])) {
@@ -893,7 +1019,7 @@ int main(int argc, char** argv) {
     }
   } else if (strcmp(argv[1], "create") == 0) {
     if (argc != 3) {
-      printf("Incorrect usage...\n");
+      usage(argv[0]);
       return 0;
     }
     if (!create(argv[2])) {
@@ -901,7 +1027,7 @@ int main(int argc, char** argv) {
     }
   } else if (strcmp(argv[1], "update") == 0) {
     if (argc != 3) {
-      printf("Incorrect usage...\n");
+      usage(argv[0]);
       return 0;
     }
     if (!update(argv[2])) {
@@ -909,7 +1035,7 @@ int main(int argc, char** argv) {
     }
   } else if (strcmp(argv[1], "add") == 0) {
     if (argc != 4) {
-      printf("Incorrect usage...\n");
+      usage(argv[0]);
       return 0;
     }
     if (!add(argv[2], argv[3])) {
@@ -917,7 +1043,7 @@ int main(int argc, char** argv) {
     }
   } else if (strcmp(argv[1], "remove") == 0) {
     if (argc != 4) {
-      printf("Incorrect usage...\n");
+      usage(argv[0]);
       return 0;
     }
     if (!remuuv(argv[2], argv[3])) {
@@ -925,7 +1051,7 @@ int main(int argc, char** argv) {
     }
   } else if (strcmp(argv[1], "commit") == 0) {
     if (argc != 3) {
-      printf("Incorrect usage...\n");
+      usage(argv[0]);
       return 0;
     }
     if (!commit(argv[2])) {
@@ -933,7 +1059,7 @@ int main(int argc, char** argv) {
     }
   } else if (strcmp(argv[1], "push") == 0) {
     if (argc != 3) {
-      printf("Incorrect usage...\n");
+      usage(argv[0]);
       return 0;
     }
     if (!push(argv[2])) {
@@ -941,7 +1067,7 @@ int main(int argc, char** argv) {
     }
   } else if (strcmp(argv[1], "upgrade") == 0) {
     if (argc != 3) {
-      printf("Incorrect usage...\n");
+      usage(argv[0]);
       return 0;
     }
     if (!upgrade(argv[2])) {
@@ -949,11 +1075,19 @@ int main(int argc, char** argv) {
     }
   } else if (strcmp(argv[1], "currentversion") == 0) {
     if (argc != 3) {
-      printf("Incorrect usage...\n");
+      usage(argv[0]);
       return 0;
     }
     if (!currentversion(argv[2])) {
       printf("Current-version failed...\n");
+    }
+  } else if (strcmp(argv[1], "rollback") == 0) {
+    if (argc != 4) {
+      usage(argv[0]);
+      return 0;
+    }
+    if (!rollback(argv[2], argv[3])) {
+      printf("Rollback failed...\n");
     }
   }
 
