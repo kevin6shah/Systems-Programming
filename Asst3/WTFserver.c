@@ -183,15 +183,14 @@ int most_recent_version(char* path) {
   DIR *directory = opendir(path);
   if (directory == NULL) {
     printf("Could not open directory\n");
-    return 0;
+    return -1;
   }
-  int recent_version = 0;
+  int recent_version = -1;
   struct dirent *data;
   while ((data = readdir(directory)) != NULL) {
     if (data->d_type == 4 && strcmp(data->d_name, ".") != 0 && strcmp(data->d_name, "..") != 0) {
       // Directory
       int temp = atoi((data->d_name) + 7);
-      if (temp == 0) return 0;
       int current_version = temp;
       if (current_version > recent_version) {
         recent_version = current_version;
@@ -210,6 +209,7 @@ int senddir(int client_socket, char* project_name) {
   strcat(server_path, "/");
 
   int recent_version = most_recent_version(server_path);
+  if (recent_version < 0) return 0;
   char rec_version[255];
   sprintf(rec_version, "%d", recent_version);
   strcat(server_path, "version");

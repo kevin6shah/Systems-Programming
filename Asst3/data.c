@@ -1,7 +1,7 @@
 #include "data.h"
 
-node* linked_list_insert(node *head, node *to_be_inserted){
-    if(head == NULL){
+node* linked_list_insert(node *head, node *to_be_inserted, int updates){
+    if(updates == 1){
       return to_be_inserted;
     }
     node *ptr;
@@ -15,6 +15,7 @@ node* linked_list_insert(node *head, node *to_be_inserted){
 
 node* parse_update_file(char* update_path){
   //char* manifest_path = ".Manifest";
+  int updates = 0;
   int fd = open(update_path, O_RDONLY);
   if (fd < 0) {
     printf("Can't open the manifest file\n");
@@ -67,6 +68,7 @@ while(not_end_of_file){
       tabs_seen++;
       if (tabs_seen == 1) {
         hashnode->update_id = token[0];
+        updates++;
       } else if (tabs_seen == 2) {
         hashnode->version = atoi(token);
       } else if (tabs_seen == 3) {
@@ -88,7 +90,7 @@ while(not_end_of_file){
   }
 
   //nodeInsert(hashnode, HashTable);
-  head = linked_list_insert(head, hashnode);
+  head = linked_list_insert(head, hashnode, updates);
 
 }
 
@@ -97,6 +99,7 @@ return head;
 
 node* parse_commit_file(char* update_path){
   //char* manifest_path = ".Manifest";
+  int updates = 0;
   int fd = open(update_path, O_RDONLY);
   if (fd < 0) {
     printf("Can't open the manifest file\n");
@@ -105,8 +108,8 @@ node* parse_commit_file(char* update_path){
   }
 
   //create linked list out of all the U in update.
-  node* head = malloc (sizeof(node));
-  head = NULL;
+  node* head = NULL;
+  //head = NULL;
   //this will store the server's .Manifest file
   //now to parse the file and actually store it inside
 
@@ -132,8 +135,8 @@ while(not_end_of_file){
   if (strlen(line_buffer) < 1){
     break;
   }
-  node* hashnode = malloc(sizeof(node));
-  hashnode = NULL;
+  node* hashnode = NULL;
+  //bzero(hashnode, sizeof(node));
 
   //now we parse through each line.
   //reminder: update path looks like U tab version_num tab filepath
@@ -149,6 +152,8 @@ while(not_end_of_file){
       if (tabs_seen == 1) {
         if(token[0] == 'U'){
           update_detected = 1;
+          hashnode = malloc(sizeof(node));
+          updates++;
         }
       } else if (tabs_seen == 2) {
         if(update_detected){
@@ -172,7 +177,8 @@ while(not_end_of_file){
   }
 
   //nodeInsert(hashnode, HashTable);
-  head = linked_list_insert(head, hashnode);
+  //head->filepath
+  if (hashnode != NULL) head = linked_list_insert(head, hashnode, updates);
 
 }
 close(fd);
@@ -380,7 +386,7 @@ void printHash(node** HashTable){
   }
 }
 
-int   (node** HashTable, char* path, int version) {
+int make_manifest(node** HashTable, char* path, int version) {
   int fd = open(path, O_WRONLY | O_CREAT, 0700);
   if (fd < 0) {
     printf("Could not create Manifest\n");

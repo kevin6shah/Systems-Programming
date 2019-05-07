@@ -25,7 +25,7 @@ typedef struct node{
 #include <signal.h>
 #include <openssl/sha.h>
 
-node* linked_list_insert(node *head, node *to_be_inserted);
+node* linked_list_insert(node *head, node *to_be_inserted, int updates);
 node* parse_update_file(char* update_path);
 node* parse_commit_file(char* update_path);
 node** parse_manifest(char* manifest_path, int* version_num);

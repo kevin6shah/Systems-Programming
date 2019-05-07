@@ -495,7 +495,6 @@ int push_helper(char* project_name){
     }
   }
 
-
   //go through the .Commit file, and check for U(pdated) files, and take fileversion and hashcode
   node *head = parse_commit_file(commit_file_path);
   node *list_ptr;
@@ -506,7 +505,7 @@ int push_helper(char* project_name){
     strcpy(temp->code, gethash(list_ptr->filepath));
 
   }
-  //update the .Manifest with it
+  //   the .Manifest with it
   remove(dup_manifest_path);
   make_manifest(client_push, dup_manifest_path, ++version_num_manifest);
 
@@ -542,7 +541,6 @@ int push(char* project_name) {
   senddir(path, vp);
   RMDIR(project_name);
   rmdir(project_name);
-  printf("path to be renamed: %s, name of path: %s", path, project_name);
   rename(path, project_name);
   printf("Push was successful...\n");
   return 1;
