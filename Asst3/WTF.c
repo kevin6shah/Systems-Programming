@@ -274,6 +274,15 @@ int upgrade_helper(char* project_name) {
     return 0;
   }
   close(fd);
+    
+    int pd = open(".Manifest", O_RDONLY);
+    if (pd < 0) {
+        printf("cannot open server .Manifest file\n");
+        close(pd);
+        return 0;
+    }
+    close(pd);
+    
 
 
 
@@ -288,13 +297,18 @@ int upgrade_helper(char* project_name) {
   //Parse through .Update file, create linked list of operations
 
   node *head = parse_update_file(update_path);
+    
 
   //traverse .Update and implement changes
   //get mostrecentversionnum of project
   node *ptr;
   for (ptr = head; ptr != NULL; ptr = ptr->next){
     if(ptr->update_id == 'D'){
-      manifest_data[getkey(ptr->filename)] = delete(ptr->filepath,manifest_data[getkey(ptr->filename)]);
+        manifest_data[getkey(ptr->filename)] = delete(ptr->filepath,manifest_data[getkey(ptr->filename)]);
+        //printf("here\n");
+        //printf("%d, %s, %s\n", getkey(ptr->filename), ptr->filename, ptr->filepath);
+        //remuuv(project_name, ptr->filename);
+        //return 1;
     } else if(ptr->update_id == 'M'){
       //fetch ptr->filepath (specific file) from server
       //servers path : .server_repo/projectname/(most recent version)/filepath
@@ -328,7 +342,7 @@ int upgrade_helper(char* project_name) {
   write(client_socket, "$***$$TOKEN", strlen("$***$$TOKEN"));
   remove(manifest_path);
   make_manifest(manifest_data, manifest_path, j);
-  remove(".Manifest");
+  //remove(".Manifest");
   return 1;
 }
 

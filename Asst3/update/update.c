@@ -381,9 +381,9 @@ void update(char* project_name){
 
         }
       }
-      if (error){
+    }
+    if (error){
         remove(".Update");
-      }
     }
 
 

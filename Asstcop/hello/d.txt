@@ -1,0 +1,17 @@
+hello, this file is d.txt
+ugh 
+this is not working
+why is thhis project not working
+ls
+cd
+make
+clear
+pwd
+ls
+what
+am i 
+evne
+typign a
+at 
+tbis p
+point
