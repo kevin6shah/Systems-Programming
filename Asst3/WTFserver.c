@@ -228,6 +228,70 @@ int checkout(int client_socket, char* project_name) {
   return 1;
 }
 
+int upgrade(int client_socket, char* project_name) {
+  if (!exists("./", ".server_repo") || !exists(".server_repo/", project_name)) {
+    return 0;
+  }
+
+  write(client_socket, "*", 1);
+  write(client_socket, ".Manifest", strlen(".Manifest"));
+  write(client_socket, "$TOKEN", strlen("$TOKEN"));
+
+  char new_path[255] = ".server_repo/";
+  strcat(new_path, project_name);
+  strcat(new_path, "/");
+  int recent_version = most_recent_version(new_path);
+  char version[255];
+  sprintf(version, "%d", recent_version);
+  strcat(new_path, "version");
+  strcat(new_path, version);
+  strcat(new_path, "/.Manifest");
+  if (!send_file(client_socket, new_path)) {
+    printf("Error: Could not send '%s' to the server\n", new_path);
+    write(client_socket, "$FFF$$TOKEN", strlen("$FFF$$TOKEN"));
+    return 0;
+  } else write(client_socket, "$***$$TOKEN", strlen("$***$$TOKEN"));
+
+  int i = 0;
+  char c;
+  char file_path[255];
+  while(1){
+    //this while loop gets the path of the file it needs to send.
+    bzero(file_path, 255);
+    while (read(client_socket, &c, 1) > 0) {
+      file_path[i] = c;
+      if (file_path[i] == 'N' && file_path[i - 1] == 'E' && file_path[i - 2] == 'K' && file_path[i - 3] == 'O'
+      && file_path[i - 4] == 'T' && file_path[i - 5] == '$') {
+        file_path[i - 5] = '\0';
+        break;
+      }
+      i++;
+    }
+    if (strcmp(file_path, "$***$") == 0) break;
+    if (strcmp(file_path, "$FFF$") == 0) return 0;
+
+    write(client_socket, "*", strlen("*"));
+    write(client_socket, file_path, strlen(file_path));
+    write(client_socket, "$TOKEN", strlen("$TOKEN"));
+
+    char server_path[255] = ".server_repo/", vp[255];
+    strcat(server_path, project_name);
+    int version = most_recent_version(server_path);
+    sprintf(vp, "%d", version);
+    strcat(server_path, "/version");
+    strcat(server_path, vp);
+    strcat(server_path, file_path+strlen(project_name));
+    if (!send_file(client_socket, server_path)) {
+      write(client_socket, "$FFF$$TOKEN", strlen("$FFF$$TOKEN"));
+      return 0;
+    }
+    write(client_socket, "$***$$TOKEN", strlen("$***$$TOKEN"));
+    i = 0;
+  }
+  printf("Upgrade was successful...\n");
+  return 1;
+}
+
 int create(int client_socket, char* project_name) {
   char path[255] = ".server_repo/";
   if (!exists("./", ".server_repo")) {
@@ -253,6 +317,30 @@ int create(int client_socket, char* project_name) {
   return 1;
 }
 
+int currentversion(int client_socket, char* project_name) {
+  if (!exists("./", ".server_repo") || !exists(".server_repo/", project_name)) {
+    return 0;
+  }
+
+  char new_path[255] = ".server_repo/";
+  strcat(new_path, project_name);
+  strcat(new_path, "/");
+  int recent_version = most_recent_version(new_path);
+  char version[255];
+  sprintf(version, "%d", recent_version);
+  strcat(new_path, "version");
+  strcat(new_path, version);
+  strcat(new_path, "/.Manifest");
+
+  int fd = open(new_path, O_RDONLY);
+  if (fd < 0) return 0;
+  char c;
+  while (read(fd, &c, 1) > 0) write(client_socket, &c, 1);
+
+  printf("Current-Version was successful...\n");
+  return 1;
+}
+
 int update(int client_socket, char* project_name) {
   if (!exists("./", ".server_repo") || !exists(".server_repo/", project_name)) {
     return 0;
@@ -274,6 +362,7 @@ int update(int client_socket, char* project_name) {
     printf("Error: Could not send '%s' to the server\n", new_path);
     return 0;
   }
+  printf("Update was successful...\n");
   return 1;
 }
 
@@ -388,6 +477,16 @@ void* main_process(void* socket) {
       write(client_socket, "$FFF$$TOKEN", strlen("$FFF$$TOKEN"));
       printf("Commit failed...\n");
     } else write(client_socket, "$***$$TOKEN", strlen("$***$$TOKEN"));
+  } else if (strcmp(token, "upgrade") == 0) {
+    if (!upgrade(client_socket, project_name)) {
+      write(client_socket, "$FFF$$TOKEN", strlen("$FFF$$TOKEN"));
+      printf("Upgrade failed...\n");
+    } else write(client_socket, "$***$$TOKEN", strlen("$***$$TOKEN"));
+  } else if (strcmp(token, "currentversion") == 0) {
+    if (!currentversion(client_socket, project_name)) {
+      write(client_socket, "$FFF$", strlen("$FFF$"));
+      printf("Current-Version failed...\n");
+    }
   }
   // Else ifs after this
 

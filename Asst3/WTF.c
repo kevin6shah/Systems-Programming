@@ -261,6 +261,116 @@ int update(char* project_name) {
   return 1;
 }
 
+int upgrade_helper(char* project_name) {
+  char *update_path = malloc (sizeof(1000));
+  strcpy(update_path, project_name);
+  strcat(update_path, "/.Update");
+  printf("%s\n", update_path);
+  //check if there actually exists a .Update file
+  int fd = open(update_path, O_RDONLY);
+  if (fd < 0) {
+    printf(".Update file does not exist dawg\n");
+    close(fd);
+    return 0;
+  }
+  close(fd);
+
+
+
+  char manifest_path[255];
+  strcpy(manifest_path, project_name);
+  strcat(manifest_path, "/.Manifest");
+  int j,n;
+  //j holds server's manifest version
+  node** server_manifest= parse_manifest(".Manifest", &j);
+  node **manifest_data = parse_manifest(manifest_path, &n);
+
+  //Parse through .Update file, create linked list of operations
+
+  node *head = parse_update_file(update_path);
+
+  //traverse .Update and implement changes
+  //get mostrecentversionnum of project
+  node *ptr;
+  for (ptr = head; ptr != NULL; ptr = ptr->next){
+    if(ptr->update_id == 'D'){
+      manifest_data[getkey(ptr->filename)] = delete(ptr->filepath,manifest_data[getkey(ptr->filename)]);
+    } else if(ptr->update_id == 'M'){
+      //fetch ptr->filepath (specific file) from server
+      //servers path : .server_repo/projectname/(most recent version)/filepath
+      remove(ptr->filepath);
+      write(client_socket, ptr->filepath, strlen(ptr->filepath));
+      write(client_socket, "$TOKEN", strlen("$TOKEN"));
+      if (!recieve()) {
+        printf("There occured an error recieving '%s' from the server...\n", ptr->filepath);
+        return 0;
+      }
+      node *temp = search_node(ptr, manifest_data);
+      node *server_node = search_node(ptr, server_manifest);
+      bzero(temp->code, strlen(temp->code));
+      strcpy(temp->code, gethash(temp->filepath));
+      temp->version = server_node->version;
+
+
+    } else if(ptr->update_id == 'A'){
+      write(client_socket, ptr->filepath, strlen(ptr->filepath));
+      write(client_socket, "$TOKEN", strlen("$TOKEN"));
+      if (!recieve()) {
+        printf("There occured an error recieving '%s' from the server...\n", ptr->filepath);
+        return 0;
+      }
+      node *server_node = search_node(ptr, server_manifest);
+      ptr->version = server_node->version;
+      nodeInsert(ptr, manifest_data);
+
+    }
+  }
+  write(client_socket, "$***$$TOKEN", strlen("$***$$TOKEN"));
+  remove(manifest_path);
+  make_manifest(manifest_data, manifest_path, j);
+  remove(".Manifest");
+  return 1;
+}
+
+int upgrade(char* project_name){
+  if (!connect_client()) {
+    return 0;
+  }
+  write(client_socket, "upgrade:", strlen("upgrade:"));
+  write(client_socket, project_name, strlen(project_name));
+  write(client_socket, "$TOKEN", strlen("$TOKEN"));
+  if (!recieve()) {
+    printf(".Manifest file was not recieved from the server\n");
+    return 0;
+  }
+
+  if (upgrade_helper(project_name)) {
+    printf("Upgrade was successful...\n");
+    return 1;
+  }
+  return 0;
+}
+
+int currentversion(char* project_name){
+  if (!connect_client()) {
+    return 0;
+  }
+  write(client_socket, "currentversion:", strlen("currentversion:"));
+  write(client_socket, project_name, strlen(project_name));
+  write(client_socket, "$TOKEN", strlen("$TOKEN"));
+
+  printf("\nCurrent Version: ");
+  char c;
+  char token[255];
+  int i = 0;
+  while (read(client_socket, &c, 1) > 0) token[i++] = c;
+  if (i > 4 && token[i] == '$' && token[i-1] == 'F'
+  && token[i-2] == 'F' && token[i-3] == 'F' && token[i-4] == '$') return 0;
+  else token[i] = '\0';
+  printf("%s\n", token);
+  return 1;
+}
+
 int RMDIR(char* path) {
   DIR *directory = opendir(path);
   if (directory == NULL) {
@@ -575,6 +685,8 @@ int commit(char* project_name){
   return 0;
 }
 
+
+
 int add(char* project_name, char* file_old_path) {
   int client_manifest_version;
   char path[255];
@@ -755,13 +867,13 @@ int main(int argc, char** argv) {
 
   if (strcmp(argv[1], "configure") == 0) {
     if (argc != 4) {
-      printf("Configure failed...\n");
+      printf("Incorrect usage...\n");
       return 0;
     }
     configure(argv[2], argv[3]);
   } else if (strcmp(argv[1], "checkout") == 0) {
     if (argc != 3) {
-      printf("Checkout failed...\n");
+      printf("Incorrect usage...\n");
       return 0;
     }
     if (!checkout(argv[2])) {
@@ -769,7 +881,7 @@ int main(int argc, char** argv) {
     }
   } else if (strcmp(argv[1], "create") == 0) {
     if (argc != 3) {
-      printf("Create failed...\n");
+      printf("Incorrect usage...\n");
       return 0;
     }
     if (!create(argv[2])) {
@@ -777,7 +889,7 @@ int main(int argc, char** argv) {
     }
   } else if (strcmp(argv[1], "update") == 0) {
     if (argc != 3) {
-      printf("Update failed...\n");
+      printf("Incorrect usage...\n");
       return 0;
     }
     if (!update(argv[2])) {
@@ -785,7 +897,7 @@ int main(int argc, char** argv) {
     }
   } else if (strcmp(argv[1], "add") == 0) {
     if (argc != 4) {
-      printf("Add failed...\n");
+      printf("Incorrect usage...\n");
       return 0;
     }
     if (!add(argv[2], argv[3])) {
@@ -793,7 +905,7 @@ int main(int argc, char** argv) {
     }
   } else if (strcmp(argv[1], "remove") == 0) {
     if (argc != 4) {
-      printf("Remove failed...\n");
+      printf("Incorrect usage...\n");
       return 0;
     }
     if (!remuuv(argv[2], argv[3])) {
@@ -801,7 +913,7 @@ int main(int argc, char** argv) {
     }
   } else if (strcmp(argv[1], "commit") == 0) {
     if (argc != 3) {
-      printf("Commit failed...\n");
+      printf("Incorrect usage...\n");
       return 0;
     }
     if (!commit(argv[2])) {
@@ -809,11 +921,27 @@ int main(int argc, char** argv) {
     }
   } else if (strcmp(argv[1], "push") == 0) {
     if (argc != 3) {
-      printf("Push failed...\n");
+      printf("Incorrect usage...\n");
       return 0;
     }
     if (!push(argv[2])) {
       printf("Push failed...\n");
+    }
+  } else if (strcmp(argv[1], "upgrade") == 0) {
+    if (argc != 3) {
+      printf("Incorrect usage...\n");
+      return 0;
+    }
+    if (!upgrade(argv[2])) {
+      printf("Upgrade failed...\n");
+    }
+  } else if (strcmp(argv[1], "currentversion") == 0) {
+    if (argc != 3) {
+      printf("Incorrect usage...\n");
+      return 0;
+    }
+    if (!currentversion(argv[2])) {
+      printf("Current-version failed...\n");
     }
   }
 
