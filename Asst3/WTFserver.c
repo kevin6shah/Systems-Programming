@@ -295,24 +295,34 @@ int upgrade(int client_socket, char* project_name) {
 }
 
 int create(int client_socket, char* project_name) {
-  char path[255] = ".server_repo/";
+  char path[255] = ".server_repo/", history_path[255];
   if (!exists("./", ".server_repo")) {
     mkdir(".server_repo", 0700);
   } else {
     if (exists(path, project_name)) return 0;
   }
   strcat(path, project_name);
+  strcpy(history_path, path);
+  strcat(history_path, "/.History");
   mkdir(path, 0700);
   strcat(path, "/version0");
   mkdir(path, 0700);
   strcat(path, "/.Manifest");
   int fd = open(path, O_WRONLY | O_CREAT, 0700);
+  int historyfd = open(history_path, O_WRONLY | O_CREAT, 0700);
   if (fd < 0) {
     printf("Could not create the Manifest file...\n");
     close(fd);
     return 0;
   }
+  if (historyfd < 0) {
+    printf("Could not create the History file...\n");
+    close(historyfd);
+    return 0;
+  }
+  write(historyfd, "create\n0\n\n", strlen("create\n0\n\n"));
   write(fd, "0\n", strlen("0\n"));
+  close(historyfd);
   close(fd);
   if (!senddir(client_socket, project_name)) return 0;
   printf("Create was successful\n");
@@ -384,7 +394,70 @@ int push(int client_socket, char* project_name) {
   write(client_socket, vp, strlen(vp));
   write(client_socket, "$", 1);
   if (!recieve(client_socket)) return 0;
+
+  version++;
+  char history_path[255], commit_path[255];
+  strcpy(history_path, new_path);
+  strcpy(commit_path, new_path);
+  strcat(commit_path, "version");
+  bzero(vp, 255);
+  sprintf(vp, "%d", version);
+  strcat(commit_path, vp);
+  strcat(commit_path, "/.Commit");
+
+  strcat(history_path, ".History");
+  int historyfd = open(history_path, O_RDONLY);
+  int commitfd = open(commit_path, O_RDONLY);
+  struct stat stats;
+  struct stat stats_commit;
+  stat(history_path, &stats);
+  stat(commit_path, &stats_commit);
+  int size = stats.st_size;
+  int size2 = stats_commit.st_size;
+  char *historybuf = malloc(size);
+  char *commitbuf = malloc(size2);
+  read(historyfd, historybuf, size);
+  read(commitfd, commitbuf, size2);
+  close(historyfd);
+  close(commitfd);
+
+  remove(history_path);
+  historyfd = open(history_path, O_WRONLY | O_CREAT, 0700);
+  write(historyfd, historybuf, strlen(historybuf));
+  write(historyfd, vp, strlen(vp));
+  write(historyfd, "\n", 1);
+  write(historyfd, commitbuf, strlen(commitbuf));
+  write(historyfd, "\n", 1);
+
   printf("Push was successful...\n");
+  return 1;
+}
+
+int destroy(char* project_name) {
+  if (!exists("./", ".server_repo") || !exists(".server_repo/", project_name)) return 0;
+
+  char new_path[255] = ".server_repo/";
+  strcat(new_path, project_name);
+  if (!RMDIR(new_path)) return 0;
+
+  rmdir(new_path);
+  printf("Destroy succeeded...\n");
+  return 1;
+}
+
+int history(int client_socket, char* project_name) {
+  if (!exists("./", ".server_repo") || !exists(".server_repo/", project_name)) {
+    return 0;
+  }
+  char path[255] = ".server_repo/";
+  strcat(path, project_name);
+  strcat(path, "/.History");
+  int fd = open(path, O_RDONLY);
+  struct stat stats;
+  stat(path, &stats);
+  char *buf = malloc(stats.st_size);
+  read(fd, buf, stats.st_size);
+  write(client_socket, buf, stats.st_size);
   return 1;
 }
 
@@ -527,7 +600,7 @@ void* main_process(void* socket) {
   } else if (strcmp(token, "push") == 0) {
     if (!push(client_socket, project_name)) {
       write(client_socket, "$FFF$$TOKEN", strlen("$FFF$$TOKEN"));
-      printf("Commit failed...\n");
+      printf("Push failed...\n");
     } else write(client_socket, "$***$$TOKEN", strlen("$***$$TOKEN"));
   } else if (strcmp(token, "upgrade") == 0) {
     if (!upgrade(client_socket, project_name)) {
@@ -543,6 +616,16 @@ void* main_process(void* socket) {
     if (!rollback(client_socket, project_name, file_path)) {
       write(client_socket, "$FFF$", strlen("$FFF$"));
       printf("Rollback failed...\n");
+    }
+  } else if (strcmp(token, "destroy") == 0) {
+    if (!destroy(project_name)) {
+      write(client_socket, "$FFF$", strlen("$FFF$"));
+      printf("Destroy failed...\n");
+    }
+  } else if (strcmp(token, "history") == 0) {
+    if (!history(client_socket, project_name)) {
+      write(client_socket, "$FFF$", strlen("$FFF$"));
+      printf("History failed...\n");
     }
   }
   // Else ifs after this

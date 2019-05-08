@@ -441,10 +441,7 @@ int upgrade_helper(char* project_name) {
   for (ptr = head; ptr != NULL; ptr = ptr->next){
     if(ptr->update_id == 'D'){
         manifest_data[getkey(ptr->filename)] = delete(ptr->filepath,manifest_data[getkey(ptr->filename)]);
-        //printf("here\n");
-        //printf("%d, %s, %s\n", getkey(ptr->filename), ptr->filename, ptr->filepath);
-        //remuuv(project_name, ptr->filename);
-        //return 1;
+        remove(ptr->filepath);
     } else if(ptr->update_id == 'M'){
       //fetch ptr->filepath (specific file) from server
       //servers path : .server_repo/projectname/(most recent version)/filepath
@@ -611,9 +608,6 @@ int push_helper(char* project_name){
   char *commit_file_path = malloc(strlen(project_name) + strlen("/.Commit") + 1);
   strcpy(commit_file_path, project_name);
   strcat(commit_file_path, "/.Commit");
-  char *dup_commit_file_path = malloc(strlen(dup_project_name) + strlen("/.Commit") + 1);
-  strcpy(dup_commit_file_path, dup_project_name);
-  strcat(dup_commit_file_path, "/.Commit");
 
   int fd = open(commit_file_path, O_RDONLY);
   if (fd < 0) {
@@ -656,13 +650,44 @@ int push_helper(char* project_name){
   }
   //   the .Manifest with it
   remove(dup_manifest_path);
-  remove(dup_commit_file_path);
   make_manifest(client_push, dup_manifest_path, ++version_num_manifest);
 
   //finally update .Manifest version and replace the client one
   return 1;
   //send entire directory to be copied into version(manifest#) project.
 
+}
+
+int destroy(char* project_name) {
+  if (!connect_client()) {
+    return 0;
+  }
+  write(client_socket, "destroy:", strlen("destroy:"));
+  write(client_socket, project_name, strlen(project_name));
+  write(client_socket, "$TOKEN", strlen("$TOKEN"));
+
+  char status[255];
+  int n = read(client_socket, status, 255);
+  status[5] = '\0';
+  if (strcmp(status, "$FFF$") == 0) return 0;
+  printf("Destroy was successful...\n");
+  return 1;
+}
+
+int history(char* project_name) {
+  if (!connect_client()) {
+    return 0;
+  }
+  write(client_socket, "destroy:", strlen("destroy:"));
+  write(client_socket, project_name, strlen(project_name));
+  write(client_socket, "$TOKEN", strlen("$TOKEN"));
+
+  char *buf = malloc(2000);
+  int n = read(client_socket, buf, 2000);
+  buf[n] = '\0';
+  printf("%s\n", buf);
+  printf("History was successful...\n");
+  return 1;
 }
 
 int push(char* project_name) {
@@ -692,6 +717,17 @@ int push(char* project_name) {
   RMDIR(project_name);
   rmdir(project_name);
   rename(path, project_name);
+
+  bzero(path, 255);
+  strcpy(path, project_name);
+  strcat(path, "/.Commit");
+  remove(path);
+
+  char status[255];
+  int n = read(client_socket, status, 255);
+  status[5] = '\0';
+  if (strcmp(status, "$FFF$") == 0) return 0;
+
   printf("Push was successful...\n");
   return 1;
 }
@@ -834,8 +870,6 @@ int commit(char* project_name){
   }
   return 0;
 }
-
-
 
 int add(char* project_name, char* file_old_path) {
   int client_manifest_version;
@@ -1104,6 +1138,22 @@ int main(int argc, char** argv) {
     }
     if (!rollback(argv[2], argv[3])) {
       printf("Rollback failed...\n");
+    }
+  } else if (strcmp(argv[1], "destroy") == 0) {
+    if (argc != 3) {
+      usage(argv[0]);
+      return 0;
+    }
+    if (!destroy(argv[2])) {
+      printf("Destroy failed...\n");
+    }
+  } else if (strcmp(argv[1], "history") == 0) {
+    if (argc != 3) {
+      usage(argv[0]);
+      return 0;
+    }
+    if (!history(argv[2])) {
+      printf("History failed...\n");
     }
   }
 
