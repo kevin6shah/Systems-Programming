@@ -289,11 +289,12 @@ int update_helper(char* project_name){
           //delete
           completed_if_else_command = 1;
           printf("D:\t%s\n", file_client->filepath);
-          write(fd, "D\t", strlen("D\t"));
+          write(fd, "D", strlen("D"));
+          write(fd, "\t", 1);
           char* version_num_buff = malloc(10);
           int tmp = file_client->version;
           sprintf(version_num_buff,"%d", tmp);
-          write(fd, version_num_buff, sizeof(version_num_buff));
+          write(fd, version_num_buff, strlen(version_num_buff));
           write(fd, "\t", 1);
           write(fd, file_client->filename, strlen(file_client->filename));
           write(fd, "\t", 1);
@@ -313,10 +314,11 @@ int update_helper(char* project_name){
             //modify
             completed_if_else_command = 1;
             printf("M:\t%s\n", file_client->filepath);
-            write(fd, "M\t", strlen("M\t"));
+            write(fd, "M", strlen("M"));
+            write(fd, "\t", 1);
             char* version_num_buff = malloc(10);
             sprintf(version_num_buff,"%d", file_server->version);
-            write(fd, version_num_buff, sizeof(version_num_buff));
+            write(fd, version_num_buff, strlen(version_num_buff));
             write(fd, "\t", 1);
             write(fd, file_client->filename, strlen(file_client->filename));
             write(fd, "\t", 1);
@@ -343,15 +345,16 @@ int update_helper(char* project_name){
     int j;
     for (j = 0; j < 150; j++){
       if(hash_server[j] == NULL) continue;
-      node* ptr = hash_server[i];
+      node* ptr = hash_server[j];
       for(;ptr != NULL; ptr = ptr->next){
         node* test = search_node(ptr, hash_client);
         if(strcmp(test->filename, "does not exist") == 0){
           printf("A:\t%s\n", ptr->filepath);
-          write(fd, "A\t", strlen("A\t"));
+          write(fd, "A", strlen("A"));
+          write(fd, "\t", 1);
           char* version_num_buff = malloc(10);
           sprintf(version_num_buff,"%d", ptr->version);
-          write(fd, version_num_buff, sizeof(version_num_buff));
+          write(fd, version_num_buff, strlen(version_num_buff));
           write(fd, "\t", 1);
           write(fd, ptr->filename, strlen(ptr->filename));
           write(fd, "\t", 1);
@@ -396,14 +399,13 @@ int update(char* project_name) {
 }
 
 int upgrade_helper(char* project_name) {
-  char *update_path = malloc (sizeof(1000));
+  char *update_path = malloc(1000);
   strcpy(update_path, project_name);
   strcat(update_path, "/.Update");
-  printf("%s\n", update_path);
   //check if there actually exists a .Update file
   int fd = open(update_path, O_RDONLY);
   if (fd < 0) {
-    printf(".Update file does not exist dawg\n");
+    printf(".Update file does not exist dawg... Try updating first!\n");
     close(fd);
     return 0;
   }
@@ -432,8 +434,7 @@ int upgrade_helper(char* project_name) {
   //Parse through .Update file, create linked list of operations
 
   node *head = parse_update_file(update_path);
-
-
+  remove(update_path);
   //traverse .Update and implement changes
   //get mostrecentversionnum of project
   node *ptr;
@@ -610,6 +611,18 @@ int push_helper(char* project_name){
   char *commit_file_path = malloc(strlen(project_name) + strlen("/.Commit") + 1);
   strcpy(commit_file_path, project_name);
   strcat(commit_file_path, "/.Commit");
+  char *dup_commit_file_path = malloc(strlen(dup_project_name) + strlen("/.Commit") + 1);
+  strcpy(dup_commit_file_path, dup_project_name);
+  strcat(dup_commit_file_path, "/.Commit");
+
+  int fd = open(commit_file_path, O_RDONLY);
+  if (fd < 0) {
+    printf("Try committing first before you push\n");
+    close(fd);
+    return 0;
+  }
+  close(fd);
+
   //hash that jawn
   int version_num_manifest;
   node **client_push = parse_manifest(dup_manifest_path, &version_num_manifest);
@@ -643,6 +656,7 @@ int push_helper(char* project_name){
   }
   //   the .Manifest with it
   remove(dup_manifest_path);
+  remove(dup_commit_file_path);
   make_manifest(client_push, dup_manifest_path, ++version_num_manifest);
 
   //finally update .Manifest version and replace the client one
@@ -730,7 +744,7 @@ int commit_helper(char* project_name) {
       } else if (strcmp(server_node->code, ptr->code)!=0 && server_node->version >= ptr->version){
         //error lol
         printf("client must synch with the repository before committing changes\n");
-        remove(".Commit");
+        remove(temp_commit_path);
       }
 
       if(strcmp("does not exist", temp->filename)==0){
@@ -753,10 +767,12 @@ int commit_helper(char* project_name) {
         }
       }
     }
+
       int j;
       for (j = 0; j < 150; j++){
         if(hash_server[j] == NULL) continue;
-        node* ptr = hash_server[i];
+
+        node* ptr = hash_server[j];
         for(;ptr != NULL; ptr = ptr->next){
           node* test = search_node(ptr, hash_client);
           if(strcmp(test->filename, "does not exist") == 0){

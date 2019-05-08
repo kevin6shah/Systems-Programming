@@ -479,19 +479,16 @@ node* delete(char* filepath, node *front){
     node *prev = front;
 
     if (front == NULL){
-        printf("deletedsuccessfully1\n");
         return NULL;
     }
 
     if (strcmp(filepath, front->filepath)==0 && front->next == NULL){
         head = NULL;
-        printf("deletedsuccessfully2\n");
         return NULL;
     }
 
     if (strcmp(filepath, front->filepath)==0){
         head = front->next;
-        printf("deletedsuccessfully3\n");
         return head;
     }
     for (ptr = front; ptr != NULL; ptr = ptr->next){
@@ -500,10 +497,8 @@ node* delete(char* filepath, node *front){
             continue;
         } else if (strcmp(filepath, front->filepath)==0){
             prev->next = ptr->next;
-            printf("deletedsuccessfully4\n");
             return head;
         }
     }
-    printf("deletedsuccessfully5\n");
     return head;
 }
